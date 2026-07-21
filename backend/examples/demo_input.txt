@@ -1,0 +1,11 @@
+Capitolo 1
+
+Questa e una breve pagina di prova pensata per verificare la pipeline locale.
+Il testo contiene frasi semplici, abbastanza lunghe da produrre qualche chunk
+e consentire al backend di generare audio placeholder quando XTTS non e
+installato.
+
+Capitolo 2
+
+La seconda sezione conferma che il detector dei capitoli trova heading espliciti
+e che il merge finale puo creare un file per capitolo anche senza servizi remoti.

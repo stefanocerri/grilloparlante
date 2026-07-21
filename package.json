@@ -1,0 +1,67 @@
+{
+  "name": "grillo-parlante",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop app locale per convertire PDF ed ebook in audio su macOS.",
+  "main": "dist-electron/electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:main\" \"npm:dev:electron\"",
+    "dev:renderer": "vite --config frontend/vite.config.ts",
+    "dev:main": "tsc -p electron/tsconfig.json --watch --preserveWatchOutput",
+    "dev:electron": "wait-on tcp:127.0.0.1:5173 dist-electron/electron/main.js && nodemon --watch dist-electron --ext js --exec \"electron .\"",
+    "build": "npm run build:renderer && npm run build:main && electron-builder",
+    "build:renderer": "vite build --config frontend/vite.config.ts",
+    "build:main": "tsc -p electron/tsconfig.json",
+    "lint": "tsc --noEmit -p frontend/tsconfig.json && tsc --noEmit -p electron/tsconfig.json",
+    "preview": "vite preview --config frontend/vite.config.ts"
+  },
+  "build": {
+    "appId": "studio.minddimension.grilloparlante",
+    "productName": "Grillo parlante",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "target": [
+        "zip",
+        "dmg"
+      ],
+      "category": "public.app-category.productivity"
+    }
+  },
+  "dependencies": {
+    "lucide-react": "^0.511.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.3",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react-swc": "^3.8.0",
+    "autoprefixer": "^10.4.21",
+    "concurrently": "^9.1.2",
+    "electron": "^35.1.5",
+    "electron-builder": "^26.0.12",
+    "nodemon": "^3.1.10",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3",
+    "vite": "^5.4.18",
+    "wait-on": "^8.0.3"
+  }
+}
