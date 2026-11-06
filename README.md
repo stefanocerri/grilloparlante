@@ -269,6 +269,7 @@ per votare senza pregiudizi). Ogni motore è opzionale: se il pacchetto manca vi
 | `chatterbox` | MIT | sì (serve `--reference`) | Chatterbox Multilingual, mette un watermark nell'audio |
 | `voxcpm` | Apache-2.0 | sì + voice design | VoxCPM2, crea voci da una descrizione |
 | `qwen` | Apache-2.0 | sì (serve `--reference`) | lo stesso Qwen3-TTS della beta |
+| `omnivoice` | CC-BY-NC (solo uso non commerciale) | sì + voice design | OmniVoice di k2-fsa, 600+ lingue |
 
 I motori PyTorch vanno in venv separati; lanciando lo script più volte sulla stessa `--out`
 i risultati si sommano.

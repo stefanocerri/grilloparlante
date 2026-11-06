@@ -10,6 +10,8 @@ Motori supportati (ognuno e opzionale: se il pacchetto manca viene saltato):
   chatterbox  -> Chatterbox Multilingual, MIT, clonazione da sample (pip install chatterbox-tts)
   voxcpm      -> VoxCPM2, Apache-2.0, clonazione + voice design (pip install voxcpm)
   qwen        -> Qwen3-TTS 0.6B Base, gia usato dall'app per il voice cloning
+  omnivoice   -> OmniVoice (k2-fsa), 600+ lingue, clonazione + voice design;
+                 pesi CC-BY-NC, solo uso non commerciale (pip install omnivoice)
 
 I motori con PyTorch hanno dipendenze in conflitto tra loro: conviene un venv
 per motore e lanciare lo script piu volte sulla stessa cartella --out. I
@@ -59,7 +61,7 @@ DEFAULT_TEXT = (
   "Perché, si chiese, certe cose sembrano più facili da dire quando nessuno ti guarda negli occhi?"
 )
 
-ALL_ENGINES = ("supertonic", "kokoro", "chatterbox", "voxcpm", "qwen")
+ALL_ENGINES = ("supertonic", "kokoro", "chatterbox", "voxcpm", "qwen", "omnivoice")
 
 INSTALL_HINTS = {
   "supertonic": "pip install 'supertonic>=1.3.1' onnxruntime soundfile",
@@ -67,6 +69,7 @@ INSTALL_HINTS = {
   "chatterbox": "pip install chatterbox-tts 'setuptools<81'  (venv separato consigliato)",
   "voxcpm": "pip install voxcpm  (venv separato consigliato)",
   "qwen": "pip install qwen-tts==0.1.1 'setuptools<81'  (o runtime gestito dell'app)",
+  "omnivoice": "pip install omnivoice  (venv separato consigliato)",
 }
 
 KOKORO_MODEL_URL = (
@@ -345,6 +348,42 @@ def engine_qwen(args: argparse.Namespace) -> list[Job]:
   return [("clone", run)]
 
 
+def engine_omnivoice(args: argparse.Namespace) -> list[Job]:
+  import torch
+  from omnivoice import OmniVoice
+
+  device = resolve_device(args.device)
+  model = OmniVoice.from_pretrained(
+    args.omnivoice_model,
+    device_map=device,
+    dtype=torch.float16 if device == "cuda" else torch.float32,
+  )
+  jobs: list[Job] = []
+
+  def generate(**extra: Any) -> Any:
+    return model.generate(text=args.text, language="it", speed=args.speed, **extra)[0]
+
+  if args.reference:
+
+    def run_clone(path: Path) -> tuple[float, dict[str, Any]]:
+      extra: dict[str, Any] = {"ref_audio": args.reference}
+      if args.reference_text:
+        extra["ref_text"] = args.reference_text
+      return write_wav(path, generate(**extra), 24000), {"mode": "clone", "device": device}
+
+    jobs.append(("clone", run_clone))
+
+  # Il voice design accetta solo attributi fissi in inglese (genere, eta, tono, accento).
+  for instruct in args.omnivoice_designs:
+
+    def run_design(path: Path, instruct=instruct) -> tuple[float, dict[str, Any]]:
+      return write_wav(path, generate(instruct=instruct), 24000), {"mode": "design", "instruct": instruct}
+
+    jobs.append((f"design-{slug(instruct.replace(', ', '_'))}", run_design))
+
+  return jobs
+
+
 class SkipEngine(Exception):
   pass
 
@@ -355,6 +394,7 @@ ENGINE_BUILDERS: dict[str, Callable[[argparse.Namespace], list[Job]]] = {
   "chatterbox": engine_chatterbox,
   "voxcpm": engine_voxcpm,
   "qwen": engine_qwen,
+  "omnivoice": engine_omnivoice,
 }
 
 
@@ -488,6 +528,13 @@ def build_parser() -> argparse.ArgumentParser:
     help="descrizione di voce per VoxCPM2 senza riferimento (ripetibile)",
   )
   parser.add_argument("--qwen-model", default="Qwen/Qwen3-TTS-12Hz-0.6B-Base")
+  parser.add_argument("--omnivoice-model", default="k2-fsa/OmniVoice")
+  parser.add_argument(
+    "--omnivoice-design",
+    dest="omnivoice_designs",
+    action="append",
+    help="attributi voce OmniVoice, es. 'male, middle-aged, low pitch' (ripetibile)",
+  )
   parser.add_argument("--no-blind", action="store_true", help="non generare la pagina alla cieca")
   return parser
 
@@ -506,6 +553,9 @@ def main() -> int:
       "Voce femminile italiana adulta, calda e chiara, tono da narratrice di audiolibri",
       "Voce maschile italiana matura, profonda e pacata, tono da narratore di audiolibri",
     ]
+
+  if not args.omnivoice_designs:
+    args.omnivoice_designs = ["male, middle-aged, low pitch", "female, young adult, moderate pitch"]
 
   out_dir = Path(args.out).expanduser().resolve()
   out_dir.mkdir(parents=True, exist_ok=True)
