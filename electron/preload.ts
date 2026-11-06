@@ -6,7 +6,9 @@ const api = {
   onSnapshot: (listener: (snapshot: AppSnapshot) => void) => {
     const wrapped = (_event: unknown, payload: AppSnapshot) => listener(payload);
     ipcRenderer.on("app:snapshot", wrapped);
-    return () => ipcRenderer.removeListener("app:snapshot", wrapped);
+    return () => {
+      ipcRenderer.removeListener("app:snapshot", wrapped);
+    };
   },
   installRuntime: () => ipcRenderer.invoke("runtime:install") as Promise<void>,
   pickBook: () => ipcRenderer.invoke("dialog:pick-book") as Promise<string | null>,

@@ -61,6 +61,32 @@ turso db tokens create grillo --read-only
 Nell'app apri **Telefono e Turso** e inserisci l'indirizzo, il token di scrittura (resta sul Mac) e il token di
 sola lettura (va al telefono). Premi "Prova la connessione". Il QR che compare apre la PWA già collegata.
 
+## App per il telefono (PWA)
+
+La cartella `pwa/` contiene l'app per il telefono, in stile Audible:
+- **Libreria**: copertine e card "Continua ad ascoltare".
+- **Scheda del libro**: elenco dei capitoli e download per l'ascolto offline.
+- **Player**: riprende da dove eri rimasto e offre velocità da 0,8× a 2×, salti di ±30 secondi, capitolo
+  precedente e successivo, timer di spegnimento e comandi nella schermata di blocco.
+
+Legge direttamente da Turso con il token di sola lettura. I capitoli ascoltati restano in cache sul telefono.
+
+Per pubblicarla gratis su Vercel: importa il repository e Vercel legge già la configurazione da
+`vercel.json`. Poi metti l'indirizzo ottenuto nel campo "Indirizzo dell'app per il telefono" dell'app Mac.
+
+Per lo sviluppo, con un database Turso di prova raggiungibile su `http://127.0.0.1:8099`:
+
+```bash
+GRILLO_TURSO_PROXY=http://127.0.0.1:8099 npm run dev:pwa
+```
+
+Per vedere l'interfaccia dell'app Mac in un browser normale, con i libri veri di una cartella e la
+conversione simulata:
+
+```bash
+GRILLO_DEMO_LIBRARY=~/Documents/Grillo\ Parlante npm run dev:renderer
+```
+
 ## Backend da riga di comando
 
 ```bash
