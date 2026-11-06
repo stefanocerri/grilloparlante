@@ -1,0 +1,36 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+@dataclass
+class ExtractedDocument:
+  title: str
+  file_type: str
+  text: str
+  toc: list[str] = field(default_factory=list)
+  metadata: dict[str, str] = field(default_factory=dict)
+  ocr_used: bool = False
+  warnings: list[str] = field(default_factory=list)
+  cover_bytes: bytes | None = None
+  cover_extension: str | None = None
+
+
+@dataclass
+class Chapter:
+  id: str
+  title: str
+  text: str
+  start_index: int = 0
+  end_index: int = 0
+  source: str = "fallback"
+  output_path: str | None = None
+
+
+@dataclass
+class Chunk:
+  id: str
+  chapter_id: str
+  index: int
+  text: str
+  output_path: str | None = None

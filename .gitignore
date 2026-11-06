@@ -1,0 +1,13 @@
+.venv/
+node_modules/
+dist/
+build/
+dist-electron/
+release/
+output/
+temp/
+.DS_Store
+__pycache__/
+*.pyc
+backend/.venv/
+*.log

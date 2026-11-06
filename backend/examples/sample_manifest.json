@@ -1,0 +1,40 @@
+{
+  "title": "Il libro di esempio",
+  "sourceFile": "demo-book.epub",
+  "sourceType": "epub",
+  "convertedAt": "2026-04-05T00:00:00+00:00",
+  "chapterCount": 2,
+  "chapters": [
+    {
+      "id": "chapter-01-introduzione",
+      "title": "Introduzione",
+      "outputPath": "/absolute/path/output/il-libro-di-esempio/chapter-01.mp3"
+    },
+    {
+      "id": "chapter-02-primo-passaggio",
+      "title": "Primo passaggio",
+      "outputPath": "/absolute/path/output/il-libro-di-esempio/chapter-02.mp3"
+    }
+  ],
+  "finalAudioFiles": [
+    "/absolute/path/output/il-libro-di-esempio/chapter-01.mp3",
+    "/absolute/path/output/il-libro-di-esempio/chapter-02.mp3"
+  ],
+  "warnings": [
+    "ffmpeg was not found, so chapter merge fell back to WAV concatenation."
+  ],
+  "settings": {
+    "outputDir": "/absolute/path/output",
+    "chunkSize": 1500,
+    "mergeByChapter": true,
+    "keepTempFiles": false,
+    "preferredAudioFormat": "mp3",
+    "tts": {
+      "engine": "qwen",
+      "language": "auto",
+      "voiceMode": "standard",
+      "voiceName": "Voce neutra gestita",
+      "speakingSpeed": 1
+    }
+  }
+}
