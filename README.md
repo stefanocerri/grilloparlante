@@ -256,6 +256,39 @@ Gate pratici per promuovere Qwen oltre la beta:
 - cold start e latenza devono restare accettabili su hardware target
 - la qualita percepita deve superare nettamente il motore macOS e rendere inutile XTTS nel progetto
 
+### Confronto voci italiane
+
+`backend/runtime/voice_compare.py` legge lo stesso brano italiano con più motori e voci e
+crea `output/voice-compare/index.html` (con nomi e tempi) e `index_cieco.html` (alla cieca,
+per votare senza pregiudizi). Ogni motore è opzionale: se il pacchetto manca viene saltato.
+
+| Motore | Licenza | Clonazione | Note |
+|---|---|---|---|
+| `supertonic` | quella del modello Supertonic | no | default attuale, varianti voce × step |
+| `kokoro` | Apache-2.0 | no | voci `if_sara`, `im_nicola`, molto leggero |
+| `chatterbox` | MIT | sì (serve `--reference`) | Chatterbox Multilingual, mette un watermark nell'audio |
+| `voxcpm` | Apache-2.0 | sì + voice design | VoxCPM2, crea voci da una descrizione |
+| `qwen` | Apache-2.0 | sì (serve `--reference`) | lo stesso Qwen3-TTS della beta |
+
+I motori PyTorch vanno in venv separati; lanciando lo script più volte sulla stessa `--out`
+i risultati si sommano.
+
+```bash
+# 1. motori leggeri
+backend/.venv/bin/python backend/runtime/voice_compare.py --engines supertonic,kokoro
+
+# 2. VoxCPM2: voci "disegnate" da descrizione, nessuna persona reale
+python -m venv /tmp/vc-voxcpm && /tmp/vc-voxcpm/bin/pip install voxcpm soundfile
+/tmp/vc-voxcpm/bin/python backend/runtime/voice_compare.py --engines voxcpm \
+  --design "Voce maschile italiana matura, profonda e pacata, narratore di audiolibri"
+
+# 3. clonazione della voce disegnata con gli altri motori
+python -m venv /tmp/vc-chatterbox && /tmp/vc-chatterbox/bin/pip install chatterbox-tts soundfile
+/tmp/vc-chatterbox/bin/python backend/runtime/voice_compare.py --engines chatterbox \
+  --reference output/voice-compare/design/voce_design.wav \
+  --reference-text-file output/voice-compare/design/voce_design.txt
+```
+
 ## Sviluppo locale
 
 Avvio completo desktop + renderer:
