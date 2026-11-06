@@ -283,7 +283,7 @@ python -m venv /tmp/vc-voxcpm && /tmp/vc-voxcpm/bin/pip install voxcpm soundfile
   --design "Voce maschile italiana matura, profonda e pacata, narratore di audiolibri"
 
 # 3. clonazione della voce disegnata con gli altri motori
-python -m venv /tmp/vc-chatterbox && /tmp/vc-chatterbox/bin/pip install chatterbox-tts soundfile
+python -m venv /tmp/vc-chatterbox && /tmp/vc-chatterbox/bin/pip install chatterbox-tts 'setuptools<81' soundfile
 /tmp/vc-chatterbox/bin/python backend/runtime/voice_compare.py --engines chatterbox \
   --reference output/voice-compare/design/voce_design.wav \
   --reference-text-file output/voice-compare/design/voce_design.txt

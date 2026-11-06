@@ -64,7 +64,7 @@ ALL_ENGINES = ("supertonic", "kokoro", "chatterbox", "voxcpm", "qwen")
 INSTALL_HINTS = {
   "supertonic": "pip install 'supertonic>=1.3.1' onnxruntime soundfile",
   "kokoro": "pip install kokoro-onnx soundfile",
-  "chatterbox": "pip install chatterbox-tts  (venv separato consigliato)",
+  "chatterbox": "pip install chatterbox-tts 'setuptools<81'  (venv separato consigliato)",
   "voxcpm": "pip install voxcpm  (venv separato consigliato)",
   "qwen": "pip install qwen-tts==0.1.1 'setuptools<81'  (o runtime gestito dell'app)",
 }
@@ -246,7 +246,14 @@ def engine_chatterbox(args: argparse.Namespace) -> list[Job]:
   return jobs
 
 
+_VOXCPM_CACHE: dict[str, tuple[Any, int]] = {}
+
+
 def _voxcpm_model(args: argparse.Namespace) -> tuple[Any, int]:
+  # Caricato una sola volta: --design e il motore voxcpm lo condividono (sono ~2B parametri).
+  if args.voxcpm_model in _VOXCPM_CACHE:
+    return _VOXCPM_CACHE[args.voxcpm_model]
+
   from voxcpm import VoxCPM
 
   model = call_with_supported_kwargs(
@@ -257,7 +264,8 @@ def _voxcpm_model(args: argparse.Namespace) -> tuple[Any, int]:
     device=resolve_device(args.device),
   )
   sample_rate = getattr(getattr(model, "tts_model", None), "sample_rate", None) or 48000
-  return model, int(sample_rate)
+  _VOXCPM_CACHE[args.voxcpm_model] = (model, int(sample_rate))
+  return _VOXCPM_CACHE[args.voxcpm_model]
 
 
 def _voxcpm_generate(model: Any, text: str, args: argparse.Namespace, **extra: Any) -> Any:
