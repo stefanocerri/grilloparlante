@@ -1,7 +1,10 @@
+# Estrazione testo
 pypdf>=4.3.1
 ebooklib>=0.18
 beautifulsoup4>=4.12.3
-supertonic>=1.3.1
-onnxruntime>=1.19.0
+# Audio
+numpy>=1.24
 soundfile>=0.12.1
-numpy>=1.21.0
+lameenc>=1.7.0
+# Motore voce (pesi CC-BY-NC: solo uso personale/non commerciale)
+omnivoice==0.2.1

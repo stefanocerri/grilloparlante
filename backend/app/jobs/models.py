@@ -14,6 +14,9 @@ class ExtractedDocument:
   warnings: list[str] = field(default_factory=list)
   cover_bytes: bytes | None = None
   cover_extension: str | None = None
+  # Capitoli gia separati dalla sorgente (es. segnalibri del PDF): (titolo, testo)
+  sections: list[tuple[str, str]] = field(default_factory=list)
+  author: str = ""
 
 
 @dataclass
