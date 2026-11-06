@@ -1,360 +1,213 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
-import type { OpenDialogOptions } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, protocol, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { PythonJobBridge } from "./backendBridge";
-import { ManagedRuntimeManager } from "./runtimeManager";
-import type {
-  ConversionSettings,
-  InputFileMeta,
-  JobEvent,
-  RuntimeEvent
-} from "../shared/contracts";
+import { Readable } from "node:stream";
+import QRCode from "qrcode";
+import type { AppSnapshot, ImportRequest, TursoSettings, VoiceInfo } from "../shared/contracts";
+import { bookDir, deleteBook, listBooks, toView } from "./library";
+import { backendRoot, libraryDir, readJson, userDataFile, writeJson } from "./paths";
+import { ConversionQueue } from "./queue";
+import { RuntimeManager } from "./runtime";
+import { TursoSync } from "./sync";
+
+protocol.registerSchemesAsPrivileged([
+  { scheme: "grillo", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
+]);
+
+const DEFAULT_PWA_URL = "https://grilloparlante.vercel.app";
+const settingsFile = () => userDataFile("settings.json");
+
+function loadTurso(): TursoSettings {
+  const stored = readJson<{ turso?: Partial<TursoSettings> }>(settingsFile(), {}).turso ?? {};
+  return {
+    url: stored.url ?? "",
+    writeToken: stored.writeToken ?? "",
+    readToken: stored.readToken ?? "",
+    pwaUrl: stored.pwaUrl || DEFAULT_PWA_URL
+  };
+}
 
 let mainWindow: BrowserWindow | null = null;
-const bridge = new PythonJobBridge();
-const runtimeManager = new ManagedRuntimeManager(emitRuntimeToRenderer);
-const hasSingleInstanceLock = app.requestSingleInstanceLock();
+let turso = loadTurso();
+let broadcastTimer: NodeJS.Timeout | null = null;
 
-function sanitizeImportedFileName(name: string) {
-  const base = path.basename(name);
-  return base.replace(/[^a-zA-Z0-9._-]+/g, "-");
+const runtime = new RuntimeManager(broadcast);
+const sync = new TursoSync(() => turso, broadcast);
+const queue = new ConversionQueue({
+  python: () => runtime.python,
+  onChange: broadcast,
+  onBookChanged: broadcast,
+  onChapterReady: (bookId) => sync.syncBook(bookId),
+  log: (line) => {
+    if (line.trim()) console.log(`[backend] ${line}`);
+  }
+});
+
+function voices(): VoiceInfo[] {
+  const entries = readJson<Omit<VoiceInfo, "previewUrl">[]>(path.join(backendRoot(), "voices", "voices.json"), []);
+  return entries.map((voice) => ({
+    ...voice,
+    previewUrl: fs.existsSync(path.join(backendRoot(), "voices", `${voice.id}.preview.mp3`))
+      ? `grillo://voices/${voice.id}.preview.mp3`
+      : undefined
+  }));
 }
 
-function detectFileType(filePath: string): InputFileMeta["type"] {
-  const extension = path.extname(filePath).toLowerCase();
-
-  if (extension === ".pdf") {
-    return "pdf";
-  }
-
-  if (extension === ".epub") {
-    return "epub";
-  }
-
-  if (extension === ".txt" || extension === ".md") {
-    return "txt";
-  }
-
-  return "unknown";
+function snapshot(): AppSnapshot {
+  return {
+    runtime: runtime.status,
+    voices: voices(),
+    books: listBooks().map((book) =>
+      toView(book, {
+        uploaded: sync.uploadedChapters(book.id),
+        queued: queue.queuedChapters(book.id),
+        running: queue.runningChapters(book.id)
+      })
+    ),
+    queue: queue.state(),
+    turso,
+    sync: sync.status,
+    libraryDir: libraryDir()
+  };
 }
 
-function emitToRenderer(event: JobEvent) {
-  mainWindow?.webContents.send("job:event", event);
+function broadcast() {
+  if (broadcastTimer) return;
+  broadcastTimer = setTimeout(() => {
+    broadcastTimer = null;
+    mainWindow?.webContents.send("app:snapshot", snapshot());
+  }, 120);
 }
 
-function emitRuntimeToRenderer(event: RuntimeEvent) {
-  mainWindow?.webContents.send("runtime:event", event);
+/** grillo://library/<bookId>/<file> e grillo://voices/<file>, con supporto Range per l'audio. */
+function serveFile(request: Request): Response {
+  const url = new URL(request.url);
+  const parts = url.pathname.split("/").filter(Boolean).map(decodeURIComponent);
+  const root = url.host === "voices" ? path.join(backendRoot(), "voices") : path.join(libraryDir(), "books");
+  const file = path.resolve(root, ...parts);
+  if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
+    return new Response("Non trovato", { status: 404 });
+  }
+
+  const size = fs.statSync(file).size;
+  const ext = path.extname(file).toLowerCase();
+  const type =
+    ext === ".mp3" ? "audio/mpeg" : ext === ".png" ? "image/png" : ext === ".wav" ? "audio/wav" : "image/jpeg";
+  const range = /bytes=(\d*)-(\d*)/.exec(request.headers.get("range") ?? "");
+
+  if (range) {
+    const start = range[1] ? Number(range[1]) : 0;
+    const end = range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+    const stream = Readable.toWeb(fs.createReadStream(file, { start, end })) as ReadableStream;
+    return new Response(stream, {
+      status: 206,
+      headers: {
+        "Content-Type": type,
+        "Content-Length": String(end - start + 1),
+        "Content-Range": `bytes ${start}-${end}/${size}`,
+        "Accept-Ranges": "bytes"
+      }
+    });
+  }
+
+  const stream = Readable.toWeb(fs.createReadStream(file)) as ReadableStream;
+  return new Response(stream, {
+    headers: { "Content-Type": type, "Content-Length": String(size), "Accept-Ranges": "bytes" }
+  });
 }
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1460,
-    height: 980,
-    minWidth: 1180,
-    minHeight: 860,
-    backgroundColor: "#111111",
+    width: 1240,
+    height: 840,
+    minWidth: 980,
+    minHeight: 680,
+    backgroundColor: "#f4f1eb",
     titleBarStyle: "hiddenInset",
-    roundedCorners: false,
-    trafficLightPosition: {
-      x: 16,
-      y: 16
-    },
-    webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
-      contextIsolation: true
-    }
+    trafficLightPosition: { x: 18, y: 18 },
+    webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true }
   });
 
   if (app.isPackaged) {
-    mainWindow.loadFile(path.join(app.getAppPath(), "dist", "index.html"));
+    void mainWindow.loadFile(path.join(app.getAppPath(), "dist", "index.html"));
   } else {
-    mainWindow.loadURL("http://127.0.0.1:5173");
-
-    mainWindow.webContents.on("context-menu", (_event, params) => {
-      mainWindow?.webContents.inspectElement(params.x, params.y);
-
-      if (!mainWindow?.webContents.isDevToolsOpened()) {
-        mainWindow?.webContents.openDevTools({ mode: "detach" });
-      }
-    });
-
-    mainWindow.webContents.on("before-input-event", (event, input) => {
-      const openInspector =
-        input.type === "keyDown" &&
-        input.key.toLowerCase() === "i" &&
-        input.meta &&
-        input.alt;
-
-      if (!openInspector) {
-        return;
-      }
-
-      event.preventDefault();
-
-      if (!mainWindow?.webContents.isDevToolsOpened()) {
-        mainWindow?.webContents.openDevTools({ mode: "detach" });
-      } else {
-        mainWindow?.webContents.focus();
-      }
-    });
+    void mainWindow.loadURL(process.env.GRILLO_RENDERER_URL || "http://127.0.0.1:5173");
   }
 
   mainWindow.on("closed", () => {
-    bridge.dispose();
-    runtimeManager.dispose();
     mainWindow = null;
   });
 }
 
-if (!hasSingleInstanceLock) {
+if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on("second-instance", () => {
-    if (!mainWindow) {
-      return;
-    }
-
-    if (mainWindow.isMinimized()) {
-      mainWindow.restore();
-    }
-
-    mainWindow.focus();
-  });
-
+  app.on("second-instance", () => mainWindow?.focus());
   app.whenReady().then(() => {
+    protocol.handle("grillo", serveFile);
     createWindow();
-
+    void runtime.refresh();
+    sync.syncAll();
     app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
-      }
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
   });
 }
 
 app.on("window-all-closed", () => {
-  bridge.dispose();
-  runtimeManager.dispose();
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  if (process.platform !== "darwin") app.quit();
 });
 
-app.on("before-quit", () => {
-  bridge.dispose();
-  runtimeManager.dispose();
-});
+app.on("before-quit", () => queue.dispose());
 
-ipcMain.handle("dialog:select-file", async () => {
-  console.log("[grillo] dialog:select-file invoked");
-  const window =
-    BrowserWindow.getFocusedWindow() ??
-    (mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined);
-  const options: OpenDialogOptions = {
-    properties: ["openFile"],
-    filters: [
-      { name: "Supported files", extensions: ["pdf", "epub", "txt", "md"] },
-      { name: "PDF", extensions: ["pdf"] },
-      { name: "EPUB", extensions: ["epub"] },
-      { name: "Text", extensions: ["txt", "md"] }
-    ]
+// --- IPC ---------------------------------------------------------------------
+
+ipcMain.handle("app:snapshot", () => snapshot());
+
+ipcMain.handle("runtime:install", () => runtime.install());
+
+ipcMain.handle("dialog:pick-book", async () => {
+  const window = BrowserWindow.getFocusedWindow() ?? mainWindow ?? undefined;
+  const options = {
+    properties: ["openFile" as const],
+    filters: [{ name: "Libri", extensions: ["pdf", "epub", "txt"] }]
   };
-
-  if (window) {
-    if (window.isMinimized()) {
-      window.restore();
-    }
-
-    window.focus();
-  }
-
-  let response;
-
-  try {
-    response = window
-      ? await dialog.showOpenDialog(window, options)
-      : await dialog.showOpenDialog(options);
-  } catch (error) {
-    response = await dialog.showOpenDialog(options);
-
-    if (!response.canceled) {
-      console.warn("Dialogo file aperto con fallback senza parent window.", error);
-    }
-  }
-
-  if (response.canceled || response.filePaths.length === 0) {
-    return null;
-  }
-
-  const filePath = response.filePaths[0];
-  const stats = fs.statSync(filePath);
-  console.log("[grillo] dialog:select-file picked", { filePath, size: stats.size });
-
-  return {
-    name: path.basename(filePath),
-    path: filePath,
-    type: detectFileType(filePath),
-    size: stats.size
-  } satisfies InputFileMeta;
+  const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options);
+  return result.canceled ? null : result.filePaths[0];
 });
 
-ipcMain.handle("dialog:select-reference-file", async () => {
-  const window =
-    BrowserWindow.getFocusedWindow() ??
-    (mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined);
-  const options: OpenDialogOptions = {
-    properties: ["openFile"],
-    filters: [
-      { name: "Audio reference", extensions: ["wav", "mp3", "m4a", "aiff", "aif", "flac", "ogg"] },
-      { name: "WAV", extensions: ["wav"] },
-      { name: "MP3", extensions: ["mp3"] },
-      { name: "M4A", extensions: ["m4a"] },
-      { name: "AIFF", extensions: ["aiff", "aif"] }
-    ]
-  };
+ipcMain.handle("book:import", (_event, request: ImportRequest) => queue.importBook(request));
 
-  if (window) {
-    if (window.isMinimized()) {
-      window.restore();
-    }
+ipcMain.handle("book:convert", (_event, bookId: string, chapters: number[]) => queue.enqueue(bookId, chapters));
 
-    window.focus();
-  }
+ipcMain.handle("queue:cancel", () => queue.cancelAll());
 
-  let response;
+ipcMain.handle("book:reveal", (_event, bookId: string) => shell.openPath(bookDir(bookId)));
 
-  try {
-    response = window
-      ? await dialog.showOpenDialog(window, options)
-      : await dialog.showOpenDialog(options);
-  } catch {
-    response = await dialog.showOpenDialog(options);
-  }
-
-  if (response.canceled || response.filePaths.length === 0) {
-    return null;
-  }
-
-  return response.filePaths[0];
+ipcMain.handle("book:delete", async (_event, bookId: string) => {
+  queue.dequeueBook(bookId);
+  deleteBook(bookId);
+  broadcast();
+  await sync.deleteBook(bookId).catch(() => undefined);
 });
 
-ipcMain.handle(
-  "file:cache-import",
-  async (_event, payload: { name: string; bytes: number[] }) => {
-    const tempDir = path.join(app.getPath("temp"), "grillo-imports");
-    fs.mkdirSync(tempDir, { recursive: true });
-
-    const safeName = sanitizeImportedFileName(payload.name);
-    const tempPath = path.join(tempDir, `${Date.now()}-${safeName}`);
-    const buffer = Buffer.from(payload.bytes);
-    fs.writeFileSync(tempPath, buffer);
-
-    console.log("[grillo] file:cache-import stored temp file", {
-      originalName: payload.name,
-      tempPath,
-      size: buffer.byteLength
-    });
-
-    return {
-      name: safeName,
-      path: tempPath,
-      type: detectFileType(tempPath),
-      size: buffer.byteLength
-    } satisfies InputFileMeta;
-  }
-);
-
-ipcMain.handle(
-  "job:start",
-  async (_event, payload: { file: InputFileMeta; settings: ConversionSettings }) => {
-    const engine = payload.settings?.tts?.engine;
-    const launchContext = await runtimeManager.buildLaunchContext({ engine });
-    const requiresManagedRuntime = engine === "qwen";
-
-    if (requiresManagedRuntime && launchContext.runtimeStatus.conversionBlocked) {
-      throw new Error(
-        launchContext.runtimeStatus.detail ??
-          launchContext.runtimeStatus.message ??
-          "Il runtime voce non e pronto."
-      );
-    }
-
-    bridge.start(payload.file, payload.settings, emitToRenderer, {
-      pythonCommand: launchContext.pythonCommand,
-      env: launchContext.env
-    });
-    return { ok: true };
-  }
-);
-
-ipcMain.handle("job:cancel", async () => {
-  bridge.cancel(emitToRenderer);
-  return { ok: true };
+ipcMain.handle("turso:save", (_event, next: TursoSettings) => {
+  const changedTarget = next.url !== turso.url || next.writeToken !== turso.writeToken;
+  turso = { ...next, pwaUrl: next.pwaUrl.trim() || DEFAULT_PWA_URL };
+  const stored = readJson<Record<string, unknown>>(settingsFile(), {});
+  writeJson(settingsFile(), { ...stored, turso });
+  if (changedTarget) sync.reset();
+  broadcast();
 });
 
-ipcMain.handle("shell:open-path", async (_event, targetPath: string) => {
-  await shell.openPath(targetPath);
-});
+ipcMain.handle("turso:test", () => sync.testConnection());
 
-ipcMain.handle("runtime:status", async () => {
-  return runtimeManager.getStatus(true);
-});
+ipcMain.handle("turso:sync", () => sync.syncAll());
 
-ipcMain.handle("runtime:install", async () => {
-  return runtimeManager.install("install");
-});
-
-ipcMain.handle("runtime:repair", async () => {
-  return runtimeManager.install("repair");
-});
-
-ipcMain.handle("runtime:remove", async () => {
-  return runtimeManager.remove();
-});
-
-ipcMain.handle("window:minimize", async () => {
-  const window = BrowserWindow.getFocusedWindow() ?? mainWindow;
-  window?.minimize();
-});
-
-ipcMain.handle("window:toggle-fullscreen", async () => {
-  const window = BrowserWindow.getFocusedWindow() ?? mainWindow;
-
-  if (!window) {
-    return;
-  }
-
-  window.setFullScreen(!window.isFullScreen());
-});
-
-ipcMain.handle("window:close", async () => {
-  const window = BrowserWindow.getFocusedWindow() ?? mainWindow;
-  window?.close();
-});
-
-ipcMain.handle("devtools:open", async () => {
-  if (app.isPackaged) {
-    return;
-  }
-
-  const window = BrowserWindow.getFocusedWindow() ?? mainWindow;
-
-  if (!window) {
-    return;
-  }
-
-  const { width, height } = window.getContentBounds();
-  const x = Math.max(0, Math.floor(width / 2));
-  const y = Math.max(0, Math.floor(height / 2));
-  const { webContents } = window;
-
-  // Come il click destro → Ispeziona: attiva il pannello Elementi su un nodo reale.
-  webContents.inspectElement(x, y);
-
-  if (!webContents.isDevToolsOpened()) {
-    webContents.openDevTools({ mode: "detach" });
-  } else {
-    webContents.devToolsWebContents?.focus();
-  }
+/** QR per configurare la PWA: indirizzo e chiave di sola lettura viaggiano nel frammento #, mai al server. */
+ipcMain.handle("turso:qr", async () => {
+  if (!turso.url || !turso.readToken) return null;
+  const params = new URLSearchParams({ db: turso.url, token: turso.readToken });
+  const link = `${turso.pwaUrl.replace(/\/+$/, "")}/#setup?${params.toString()}`;
+  return { link, image: await QRCode.toDataURL(link, { margin: 1, width: 320 }) };
 });

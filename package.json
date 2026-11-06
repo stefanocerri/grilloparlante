@@ -2,7 +2,7 @@
   "name": "grillo-parlante",
   "version": "0.1.0",
   "private": true,
-  "description": "Desktop app locale per convertire PDF ed ebook in audio su macOS.",
+  "description": "Da PDF ad audiolibro con voce italiana, capitolo per capitolo.",
   "main": "dist-electron/electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:main\" \"npm:dev:electron\"",
@@ -31,7 +31,10 @@
         "from": "backend",
         "to": "backend",
         "filter": [
-          "**/*"
+          "**/*",
+          "!.venv/**",
+          "!**/__pycache__/**",
+          "!runtime/voice_compare.py"
         ]
       }
     ],
@@ -46,7 +49,8 @@
   "dependencies": {
     "lucide-react": "^0.511.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@types/node": "^24.0.3",
@@ -62,6 +66,7 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "vite": "^5.4.18",
-    "wait-on": "^8.0.3"
+    "wait-on": "^8.0.3",
+    "@types/qrcode": "^1.5.5"
   }
 }

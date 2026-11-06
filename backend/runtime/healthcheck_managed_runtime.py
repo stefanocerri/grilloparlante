@@ -1,58 +1,31 @@
+"""Controlla che il runtime gestito abbia tutto il necessario. Stampa una riga JSON."""
+
 from __future__ import annotations
 
-import argparse
 import json
 import sys
 from pathlib import Path
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
-if str(BACKEND_ROOT) not in sys.path:
-  sys.path.insert(0, str(BACKEND_ROOT))
-
-from app.tts.runtime_bootstrap import prepare_third_party_runtime
-
-
-def build_parser() -> argparse.ArgumentParser:
-  parser = argparse.ArgumentParser(description="Validate the managed Qwen runtime.")
-  parser.add_argument(
-    "--model-name",
-    required=False,
-    default="Qwen/Qwen3-TTS-12Hz-0.6B-Base"
-  )
-  parser.add_argument("--reference-path", required=False, help="Optional default reference audio path.")
-  return parser
+sys.path.insert(0, str(BACKEND_ROOT))
 
 
 def main() -> int:
-  parser = build_parser()
-  args = parser.parse_args()
-  reference_path = Path(args.reference_path).expanduser().resolve() if args.reference_path else None
-  runtime_root = reference_path.parent.parent if reference_path else None
-  prepare_third_party_runtime(runtime_root)
-  result = {
-    "ok": False,
-    "modules": []
-  }
-
+  result: dict = {"ok": False}
   try:
+    import lameenc  # noqa: F401
+    import omnivoice  # noqa: F401
+    import pypdf  # noqa: F401
     import soundfile  # noqa: F401
-    import torch  # noqa: F401
-    from qwen_tts import Qwen3TTSModel  # noqa: F401
+    import torch
 
-    result["modules"] = ["soundfile", "torch", "qwen_tts.Qwen3TTSModel"]
+    from app.tts.omnivoice_engine import resolve_device
 
-    if reference_path and not reference_path.exists():
-      result["error"] = f"Default reference audio is missing at {reference_path}"
-    else:
-      result["ok"] = True
-      result["modelName"] = args.model_name
-      result["note"] = "Qwen package import ok. Model download is deferred to first synthesis."
-      if reference_path:
-        result["defaultReferencePath"] = str(reference_path)
-  except Exception as error:  # pragma: no cover - runtime boundary
-    result["error"] = str(error)
+    result.update({"ok": True, "device": resolve_device(), "torch": torch.__version__})
+  except Exception as error:  # pragma: no cover - confine del runtime
+    result["error"] = f"{type(error).__name__}: {error}"
 
-  print(json.dumps(result, ensure_ascii=False), flush=True)
+  print(json.dumps(result), flush=True)
   return 0 if result["ok"] else 1
 
 

@@ -1,72 +1,33 @@
-# Architecture
+# Architettura
 
-## Core decision
-
-Electron lancia un job Python locale come subprocess, invece di parlare con un server HTTP separato.
-
-## Why this path
-
-- meno moving parts
-- niente porta locale da gestire
-- start del job immediato
-- progress e log nativi via `stdout`
-- cancellation naturale con segnali di processo
-- ottimo fit per macOS-first desktop utility
-
-## Event protocol
-
-Il backend emette JSON lines con tre campi:
-
-```json
-{
-  "type": "stage",
-  "payload": {
-    "stage": "extract",
-    "label": "Text extraction",
-    "message": "Reading source and extracting text."
-  },
-  "timestamp": "2026-04-05T00:00:00+00:00"
-}
+```
+PDF/EPUB ──► [app Mac: Electron] ──► backend Python (OmniVoice) ──► ~/Documents/Grillo Parlante/books/<id>/
+                    │                                                   book.json · cover · text/ · chapters/*.mp3
+                    └──── capitolo pronto ──► Turso (books, chapter_audio) ──► PWA sul telefono
 ```
 
-Eventi previsti:
-- `ready`
-- `stage`
-- `progress`
-- `stats`
-- `log`
-- `warning`
-- `result`
-- `error`
-- `cancelled`
+## Processi
 
-## Electron split
+- **Electron main** (`electron/`)
+  - `runtime.ts`: trova o installa il Python con OmniVoice (`backend/runtime/install_managed_runtime.py`).
+  - `queue.ts`: un processo `python -m app.cli` alla volta; legge eventi JSON da stdout.
+  - `library.ts`: legge i `book.json` della libreria; protocollo `grillo://` per audio e copertine (con Range).
+  - `sync.ts`: carica su Turso i capitoli pronti, poi la scheda del libro. Registro in `userData/turso-sync.json`.
+  - `main.ts`: IPC e invio di uno "snapshot" completo dello stato all'interfaccia a ogni cambiamento.
+- **Interfaccia** (`frontend/`): React, si limita a mostrare lo snapshot e chiamare le azioni IPC.
+- **Backend** (`backend/app/`)
+  - `import`: estrae testo, trova i capitoli (segnalibri PDF → indice → titoli → parti da ~15 min),
+    pulisce il testo e salva `book.json` + `text/NNN.txt`.
+  - `convert`: per ogni capitolo scelto, pezzi da ~600 caratteri → OmniVoice → WAV in `work/`
+    (ripresa automatica) → MP3 48 kbps in `chapters/NNN.mp3`.
 
-- `electron/main.ts`: finestra, dialog, IPC, lifecycle desktop
-- `electron/preload.ts`: API sicura esposta al renderer
-- `electron/backendBridge.ts`: spawn del job Python e parsing degli eventi
+## Turso
 
-## Backend split
+```sql
+books(id TEXT PRIMARY KEY, json TEXT, cover BLOB, cover_mime TEXT, updated_at TEXT)
+chapter_audio(book_id TEXT, idx INTEGER, part INTEGER, data BLOB)  -- pezzi da 512 KB
+```
 
-- `extractors/`: parsing input
-- `chaptering/`: capitoli veri o fallback
-- `chunking/`: segmentazione leggibile
-- `tts/`: adapter motore voce
-- `audio/`: merge e conversione
-- `outputs/`: raw text, json, manifest
-- `jobs/`: orchestrazione
-
-## Current runtime assumptions
-
-- Python installato localmente
-- dipendenze Python in `backend/.venv` oppure `python3` di sistema
-- runtime XTTS gestito dall'app, con rilevamento automatico `it` / `en`
-- ffmpeg opzionale ma consigliato
-
-## Extension points
-
-- OCR extractor per PDF scansione
-- motori TTS multipli con selector
-- config persistente utente
-- queue di job multipli
-- packaging più stretto del runtime Python
+Il client (`shared/turso.ts`) parla direttamente con l'API HTTP di Turso (`/v2/pipeline`), senza
+dipendenze, così lo stesso codice serve all'app Mac (token di scrittura) e alla PWA (token di sola lettura).
+Nella scheda caricata un capitolo risulta `ready` solo quando tutti i suoi pezzi audio sono già su Turso.
