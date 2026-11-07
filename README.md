@@ -10,13 +10,12 @@ file sull'icona per importarlo, tasto destro per uscire. Mentre converte, accant
 2. **Scegli la voce** tra quattro voci italiane: Marco, Paolo, Giulia e Anna.
 3. **Converti** quando vuoi: un capitolo, "fino al capitolo N" o tutto. Se chiudi l'app, la conversione
    riparte da dove era rimasta.
+4. **Turso**: ogni capitolo pronto viene caricato sul tuo database Turso, da cui le PWA di ascolto (progetto
+   separato) leggono. Le notizie con `expiresAt` passato vengono tolte da Turso; sul Mac restano.
 
 Tutto gira sul Mac e senza costi: la sintesi usa [OmniVoice](https://huggingface.co/k2-fsa/OmniVoice) in locale,
 sulla GPU del Mac quando c'è. I pesi di OmniVoice hanno licenza CC-BY-NC, quindi il progetto è solo per uso
 personale e non commerciale.
-
-4. **Turso**: ogni capitolo pronto viene caricato sul tuo database Turso, da cui le PWA di ascolto (progetto
-   separato) leggono. Le notizie con `expiresAt` passato vengono tolte da Turso; sul Mac restano.
 
 ## Avvio in sviluppo
 
