@@ -6,6 +6,7 @@ import signal
 import sys
 import traceback
 
+from app.extractors.json_extractor import JsonInputError
 from app.jobs.conversion_job import ConversionJob, JobCancelled
 from app.utils.events import EventEmitter
 
@@ -60,6 +61,9 @@ def main(argv: list[str] | None = None) -> int:
   except JobCancelled:
     emitter.emit("cancelled", {"jobId": job.job_id})
     return 0
+  except JsonInputError as error:
+    emitter.error(f"File JSON non valido: {error}", str(error))
+    return 1
   except Exception as error:  # pragma: no cover - final CLI boundary
     emitter.error("Conversion failed.", traceback.format_exc().strip())
     return 1

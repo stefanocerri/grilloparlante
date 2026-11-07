@@ -1,4 +1,6 @@
-export type SupportedFileType = "pdf" | "epub" | "txt" | "unknown";
+export type SupportedFileType = "pdf" | "epub" | "txt" | "json" | "unknown";
+
+export type ContentKind = "libro" | "documentazione" | "articolo" | "notiziario";
 
 export type ConversionStage =
   | "idle"
@@ -118,6 +120,7 @@ export interface ChapterSummary {
   textLength: number;
   outputPath?: string;
   previewUrl?: string;
+  meta?: { section?: string; source?: string; url?: string; author?: string; publishedAt?: string };
 }
 
 export interface JobStats {
@@ -128,11 +131,12 @@ export interface JobStats {
   currentStage: ConversionStage;
   fileType?: SupportedFileType;
   ocrUsed?: boolean;
-  chapterMode?: "toc" | "heading" | "fallback";
+  chapterMode?: "source" | "toc" | "heading" | "fallback";
 }
 
 export interface ManifestSummary {
   title: string;
+  kind?: ContentKind;
   sourceFile: string;
   sourceType: SupportedFileType;
   convertedAt: string;

@@ -15,6 +15,7 @@ from app.chaptering.toc_detector import detect_from_toc
 from app.chunking.chunker import chunk_chapters
 from app.config.defaults import merge_settings
 from app.extractors.epub_extractor import extract_epub
+from app.extractors.json_extractor import extract_json
 from app.extractors.pdf_extractor import extract_pdf
 from app.extractors.text_extractor import extract_text_file
 from app.file_detector import detect_file_type
@@ -105,6 +106,7 @@ class ConversionJob:
       "coverPath": document.metadata.get("coverPath"),
       "manifest": {
         "title": document.title,
+        "kind": document.kind,
         "sourceFile": self.input_path.name,
         "sourceType": file_type,
         "convertedAt": document.metadata["convertedAt"],
@@ -119,7 +121,8 @@ class ConversionJob:
           "title": chapter.title,
           "chunkCount": len([chunk for chunk in chunks if chunk.chapter_id == chapter.id]),
           "textLength": len(chapter.text),
-          "outputPath": chapter.output_path
+          "outputPath": chapter.output_path,
+          **({"meta": chapter.meta} if chapter.meta else {})
         }
         for chapter in chapters
       ],
@@ -140,8 +143,18 @@ class ConversionJob:
       document = extract_epub(str(self.input_path))
     elif file_type == "txt":
       document = extract_text_file(str(self.input_path))
+    elif file_type == "json":
+      document = extract_json(str(self.input_path))
     else:
       raise RuntimeError(f"Unsupported input type: {file_type}")
+
+    if self.settings.get("kind"):
+      document.kind = str(self.settings["kind"]).strip().lower()
+
+    # Follow the language declared by the source when the UI is on "auto".
+    declared_language = document.metadata.get("language", "")
+    if declared_language and str(self.settings["tts"].get("language", "auto")).lower() == "auto":
+      self.settings["tts"]["language"] = declared_language
 
     document.metadata["sourceFile"] = self.input_path.name
     document.metadata["convertedAt"] = datetime.now(timezone.utc).isoformat()
@@ -184,8 +197,12 @@ class ConversionJob:
       "Trying TOC, then visible headings, then smart fallback sections."
     )
 
-    chapters = detect_from_toc(document.text, document.toc, document.toc_marks)
-    chapter_mode = "toc"
+    if document.chapters:
+      chapters = document.chapters
+      chapter_mode = "source"
+    else:
+      chapters = detect_from_toc(document.text, document.toc, document.toc_marks)
+      chapter_mode = "toc"
 
     if not chapters:
       chapters = detect_from_headings(document.text)

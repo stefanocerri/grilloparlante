@@ -72,7 +72,7 @@ export function Dropzone({
     console.log("[grillo] dropped file resolved from direct path", meta);
 
     if (meta.type === "unknown") {
-      onSelectionError("Formato non supportato. Usa PDF, EPUB, TXT o MD.");
+      onSelectionError("Formato non supportato. Usa PDF, EPUB, TXT, MD o JSON.");
       return;
     }
 
@@ -114,7 +114,7 @@ export function Dropzone({
           >
             <div className="dropzone-copy">
               <strong>Trascina qui</strong>
-              <p>PDF, EPUB o testo. Puoi anche cliccare l'area tratteggiata.</p>
+              <p>PDF, EPUB, testo o articoli JSON. Puoi anche cliccare l'area tratteggiata.</p>
               <span className="dropzone-feedback">
                 {isPickingFile ? "Selettore file aperto..." : "Area drag & drop attiva"}
               </span>

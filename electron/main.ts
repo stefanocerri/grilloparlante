@@ -36,6 +36,10 @@ function detectFileType(filePath: string): InputFileMeta["type"] {
     return "txt";
   }
 
+  if (extension === ".json") {
+    return "json";
+  }
+
   return "unknown";
 }
 
@@ -154,10 +158,11 @@ ipcMain.handle("dialog:select-file", async () => {
   const options: OpenDialogOptions = {
     properties: ["openFile"],
     filters: [
-      { name: "Supported files", extensions: ["pdf", "epub", "txt", "md"] },
+      { name: "Supported files", extensions: ["pdf", "epub", "txt", "md", "json"] },
       { name: "PDF", extensions: ["pdf"] },
       { name: "EPUB", extensions: ["epub"] },
-      { name: "Text", extensions: ["txt", "md"] }
+      { name: "Text", extensions: ["txt", "md"] },
+      { name: "Articoli (JSON)", extensions: ["json"] }
     ]
   };
 

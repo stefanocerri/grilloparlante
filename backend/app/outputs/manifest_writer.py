@@ -29,7 +29,8 @@ def write_outputs(
           "id": chapter.id,
           "title": chapter.title,
           "source": chapter.source,
-          "outputPath": chapter.output_path
+          "outputPath": chapter.output_path,
+          **({"meta": chapter.meta} if chapter.meta else {})
         }
         for chapter in chapters
       ],
@@ -58,6 +59,10 @@ def write_outputs(
 
   manifest = {
     "title": document.title,
+    "kind": document.kind,
+    "author": document.metadata.get("author", ""),
+    "publishedAt": document.metadata.get("publishedAt", ""),
+    "expiresAt": document.metadata.get("expiresAt", ""),
     "sourceFile": document.metadata.get("sourceFile", ""),
     "sourceType": document.file_type,
     "convertedAt": document.metadata.get("convertedAt", ""),
@@ -67,7 +72,8 @@ def write_outputs(
       {
         "id": chapter.id,
         "title": chapter.title,
-        "outputPath": chapter.output_path
+        "outputPath": chapter.output_path,
+        **({"meta": chapter.meta} if chapter.meta else {})
       }
       for chapter in chapters
     ],

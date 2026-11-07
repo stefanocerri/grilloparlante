@@ -7,7 +7,8 @@ SUPPORTED_TYPES = {
   ".pdf": "pdf",
   ".epub": "epub",
   ".txt": "txt",
-  ".md": "txt"
+  ".md": "txt",
+  ".json": "json"
 }
 
 

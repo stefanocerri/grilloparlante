@@ -53,6 +53,10 @@ export function detectFileType(filePath: string): SupportedFileType {
     return "txt";
   }
 
+  if (ext === "json") {
+    return "json";
+  }
+
   return "unknown";
 }
 

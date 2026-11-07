@@ -23,6 +23,10 @@ function detectFileType(filePath: string): InputFileMeta["type"] {
     return "txt";
   }
 
+  if (extension === "json") {
+    return "json";
+  }
+
   return "unknown";
 }
 
@@ -30,7 +34,7 @@ function openRendererFilePicker(): Promise<InputFileMeta | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".pdf,.epub,.txt,.md";
+    input.accept = ".pdf,.epub,.txt,.md,.json";
     input.style.position = "fixed";
     input.style.left = "-9999px";
 

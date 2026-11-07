@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "kind": "notiziario",
+  "title": "Notiziario di sabato 7 novembre",
+  "language": "it",
+  "publishedAt": "2026-11-07T07:00:00+01:00",
+  "expiresAt": "2026-11-14T00:00:00+01:00",
+  "sections": [
+    {
+      "title": "Tecnologia",
+      "items": [
+        {
+          "title": "Una nuova legge europea sulle batterie dei telefoni",
+          "source": "Esempio Notizie",
+          "url": "https://example.com/batterie",
+          "publishedAt": "2026-11-06T18:30:00+01:00",
+          "paragraphs": [
+            "Dal prossimo anno i telefoni venduti nell'Unione europea dovranno avere batterie che si possono sostituire senza attrezzi speciali.",
+            "La regola vale anche per tablet e cuffie senza fili. I produttori avranno tre anni e mezzo per adeguarsi, e dovranno garantire i pezzi di ricambio per almeno sette anni dalla fine delle vendite."
+          ]
+        },
+        {
+          "title": "Più treni notturni tra Italia e Austria",
+          "source": "Esempio Notizie",
+          "url": "https://example.com/treni-notte",
+          "text": "Da dicembre ci saranno due nuove corse notturne tra Milano e Vienna, una in ogni direzione, tutti i giorni.\n\nIl viaggio dura circa tredici ore. Oltre ai posti a sedere ci sono cuccette e vagoni letto, e i biglietti si possono già comprare."
+        }
+      ]
+    },
+    {
+      "title": "Scienza",
+      "items": [
+        {
+          "title": "Trovata una nuova specie di rana in Madagascar",
+          "source": "Esempio Scienza",
+          "url": "https://example.com/rana",
+          "text": "Un gruppo di ricercatori ha descritto una nuova specie di rana che vive soltanto in una piccola foresta nel nord del Madagascar.\n\nÈ lunga meno di due centimetri e ha un verso molto acuto, che di notte si sente a decine di metri di distanza. Gli autori dello studio chiedono di proteggere la foresta, perché è minacciata dal disboscamento."
+        }
+      ]
+    }
+  ]
+}

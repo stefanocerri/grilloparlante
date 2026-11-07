@@ -8,6 +8,8 @@ class ExtractedDocument:
   title: str
   file_type: str
   text: str
+  # Content type shown in the reader: libro | documentazione | articolo | notiziario
+  kind: str = "libro"
   toc: list[str] = field(default_factory=list)
   # Exact chapter start offsets in `text` (offset, title), when the source provides them.
   toc_marks: list[tuple[int, str]] = field(default_factory=list)
@@ -16,6 +18,8 @@ class ExtractedDocument:
   warnings: list[str] = field(default_factory=list)
   cover_bytes: bytes | None = None
   cover_extension: str | None = None
+  # Chapters defined by the source itself (e.g. JSON input): skip detection.
+  chapters: list["Chapter"] = field(default_factory=list)
 
 
 @dataclass
@@ -27,6 +31,7 @@ class Chapter:
   end_index: int = 0
   source: str = "fallback"
   output_path: str | None = None
+  meta: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass

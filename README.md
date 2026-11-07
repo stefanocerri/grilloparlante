@@ -1,6 +1,6 @@
 # Grillo parlante
 
-App desktop locale macOS-first per convertire PDF, EPUB e file testuali in output audio organizzati per libro e capitolo.
+App desktop locale macOS-first per convertire PDF, EPUB, file testuali e articoli in JSON (vedi [docs/json-input.md](docs/json-input.md)) in output audio organizzati per libro e capitolo.
 
 Stack:
 - Electron
