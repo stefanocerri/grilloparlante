@@ -1,12 +1,19 @@
-import type { ConversionSettings } from "@shared/contracts";
+import { useState } from "react";
+import type { ConversionSettings, SavedVoice } from "@shared/contracts";
+import { VoiceLibrary, type VoiceDraftSeed, type VoiceNotify } from "./VoiceLibrary";
 
 interface SettingsPanelProps {
   settings: ConversionSettings;
   showDetailedLogs: boolean;
+  voices: SavedVoice[];
   onChange: (next: ConversionSettings) => void;
   onToggleDetailedLogs: (next: boolean) => void;
   onPickReferenceFile: () => void;
+  onVoicesChange: (next: SavedVoice[]) => void;
+  notify: VoiceNotify;
 }
+
+const SAVED_PREFIX = "saved:";
 
 const ENGINES = [
   { value: "supertonic", label: "Supertonic" },
@@ -38,11 +45,21 @@ export function SettingsPanel({
   showDetailedLogs,
   onChange,
   onToggleDetailedLogs,
-  onPickReferenceFile
+  onPickReferenceFile,
+  voices,
+  onVoicesChange,
+  notify
 }: SettingsPanelProps) {
   const engine = settings.tts.engine;
   const isSupertonic = engine === "supertonic";
   const isQwen = engine === "qwen";
+  const [voiceSeed, setVoiceSeed] = useState<VoiceDraftSeed | null>(null);
+  const qwenVoices = voices.filter((voice) => voice.engine === "qwen");
+  const supertonicVoices = voices.filter((voice) => voice.engine === "supertonic");
+  const activeSavedVoice = voices.find((voice) => voice.id === settings.tts.savedVoiceId);
+  const activeQwenVoice = activeSavedVoice?.engine === "qwen" && isQwen ? activeSavedVoice : undefined;
+  const activeSupertonicVoice =
+    activeSavedVoice?.engine === "supertonic" && isSupertonic ? activeSavedVoice : undefined;
 
   const supportedLanguages = [
     { value: "auto", label: "Auto" },
@@ -60,6 +77,54 @@ export function SettingsPanel({
     });
   }
 
+  function applySavedVoice(voice: SavedVoice) {
+    if (voice.engine === "qwen") {
+      updateTts({
+        engine: "qwen",
+        voiceMode: "reference",
+        voiceName: voice.name,
+        savedVoiceId: voice.id,
+        referenceAudioPath: voice.referenceAudioPath ?? "",
+        referenceText: voice.referenceText ?? ""
+      });
+      return;
+    }
+
+    updateTts({
+      engine: "supertonic",
+      voiceMode: "standard",
+      voiceName: voice.name,
+      savedVoiceId: voice.id,
+      voiceStyle: settings.tts.voiceStyle || "F1",
+      voiceStylePath: voice.voiceStylePath ?? "",
+      qualitySteps: settings.tts.qualitySteps ?? 8
+    });
+  }
+
+  function clearSavedQwenVoice() {
+    updateTts({
+      voiceMode: "reference",
+      voiceName: "Voce da sample",
+      savedVoiceId: undefined,
+      referenceAudioPath: "",
+      referenceText: ""
+    });
+  }
+
+  function handleVoiceRemoved(id: string, remaining: SavedVoice[]) {
+    onVoicesChange(remaining);
+
+    if (settings.tts.savedVoiceId !== id) {
+      return;
+    }
+
+    if (isQwen) {
+      clearSavedQwenVoice();
+    } else {
+      updateTts({ savedVoiceId: undefined, voiceStylePath: "", voiceName: "Voce preset" });
+    }
+  }
+
   return (
     <div className="settings-minimal">
       <label className="setting-item">
@@ -70,16 +135,21 @@ export function SettingsPanel({
           onChange={(event) => {
             const nextEngine = event.target.value;
             if (nextEngine === "qwen") {
+              const keepsSaved = activeSavedVoice?.engine === "qwen";
               updateTts({
                 engine: "qwen",
                 voiceMode: "reference",
-                voiceName: settings.tts.voiceName || "Voce da sample"
+                voiceName: keepsSaved ? activeSavedVoice.name : "Voce da sample",
+                savedVoiceId: keepsSaved ? activeSavedVoice.id : undefined
               });
             } else {
+              const keepsSaved = activeSavedVoice?.engine === "supertonic";
               updateTts({
                 engine: "supertonic",
                 voiceMode: "standard",
-                voiceName: "Voce preset",
+                voiceName: keepsSaved ? activeSavedVoice.name : "Voce preset",
+                savedVoiceId: keepsSaved ? activeSavedVoice.id : undefined,
+                voiceStylePath: keepsSaved ? activeSavedVoice.voiceStylePath ?? "" : settings.tts.voiceStylePath,
                 voiceStyle: settings.tts.voiceStyle || "F1",
                 qualitySteps: settings.tts.qualitySteps ?? 8
               });
@@ -122,14 +192,48 @@ export function SettingsPanel({
             <span>Voce</span>
             <select
               className="field-minimal"
-              value={settings.tts.voiceStyle || "F1"}
-              onChange={(event) => updateTts({ voiceStyle: event.target.value })}
+              value={
+                activeSupertonicVoice
+                  ? `${SAVED_PREFIX}${activeSupertonicVoice.id}`
+                  : settings.tts.voiceStyle || "F1"
+              }
+              onChange={(event) => {
+                const value = event.target.value;
+
+                if (value.startsWith(SAVED_PREFIX)) {
+                  const voice = supertonicVoices.find(
+                    (item) => item.id === value.slice(SAVED_PREFIX.length)
+                  );
+                  if (voice) {
+                    applySavedVoice(voice);
+                  }
+                  return;
+                }
+
+                updateTts({
+                  voiceStyle: value,
+                  voiceName: "Voce preset",
+                  savedVoiceId: undefined,
+                  voiceStylePath: activeSupertonicVoice ? "" : settings.tts.voiceStylePath
+                });
+              }}
             >
-              {SUPERTONIC_VOICES.map((voice) => (
-                <option key={voice.value} value={voice.value}>
-                  {voice.label}
-                </option>
-              ))}
+              <optgroup label="Preset">
+                {SUPERTONIC_VOICES.map((voice) => (
+                  <option key={voice.value} value={voice.value}>
+                    {voice.label}
+                  </option>
+                ))}
+              </optgroup>
+              {supertonicVoices.length > 0 ? (
+                <optgroup label="Voci salvate">
+                  {supertonicVoices.map((voice) => (
+                    <option key={voice.id} value={`${SAVED_PREFIX}${voice.id}`}>
+                      {voice.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
             </select>
           </label>
 
@@ -151,18 +255,22 @@ export function SettingsPanel({
             </p>
           </label>
 
+          {activeSupertonicVoice ? null : (
           <label className="setting-item">
             <span>Voce personalizzata (JSON)</span>
             <input
               className="field-minimal"
               placeholder="Opzionale: /percorso/voce.json da Voice Builder"
               value={settings.tts.voiceStylePath ?? ""}
-              onChange={(event) => updateTts({ voiceStylePath: event.target.value })}
+              onChange={(event) =>
+                updateTts({ voiceStylePath: event.target.value, savedVoiceId: undefined })
+              }
             />
             <p className="settings-note">
-              Opzionale. Se vuoi una voce specifica, creala con Supertone Voice Builder e incolla qui il file JSON. Altrimenti uso la voce preset scelta sopra.
+              Opzionale. Se vuoi una voce specifica, creala con Supertone Voice Builder e incolla qui il file JSON, oppure salvala nella libreria con "Nuova voce" qui sotto.
             </p>
           </label>
+          )}
         </>
       ) : null}
 
@@ -185,6 +293,40 @@ export function SettingsPanel({
       </label>
 
       {isQwen ? (
+        <label className="setting-item">
+          <span>Voce clonata</span>
+          <select
+            className="field-minimal"
+            value={activeQwenVoice ? activeQwenVoice.id : ""}
+            onChange={(event) => {
+              const voice = qwenVoices.find((item) => item.id === event.target.value);
+              if (voice) {
+                applySavedVoice(voice);
+              } else {
+                clearSavedQwenVoice();
+              }
+            }}
+          >
+            <option value="">Campione manuale (non salvato)</option>
+            {qwenVoices.map((voice) => (
+              <option key={voice.id} value={voice.id}>
+                {voice.name}
+              </option>
+            ))}
+          </select>
+          {activeQwenVoice ? (
+            <p className="settings-note">
+              Uso il campione salvato di "{activeQwenVoice.name}" con la sua trascrizione.
+            </p>
+          ) : qwenVoices.length === 0 ? (
+            <p className="settings-note">
+              Nessuna voce clonata salvata: usa "Nuova voce" qui sotto per crearne una e riusarla.
+            </p>
+          ) : null}
+        </label>
+      ) : null}
+
+      {isQwen && !activeQwenVoice ? (
         <>
           <label className="setting-item">
             <span>Audio riferimento</span>
@@ -195,6 +337,7 @@ export function SettingsPanel({
               onChange={(event) =>
                 updateTts({
                   voiceMode: "reference",
+                  savedVoiceId: undefined,
                   referenceAudioPath: event.target.value
                 })
               }
@@ -207,6 +350,22 @@ export function SettingsPanel({
               >
                 Scegli file audio
               </button>
+              {settings.tts.referenceAudioPath?.trim() ? (
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={() =>
+                    setVoiceSeed({
+                      key: Date.now(),
+                      engine: "qwen",
+                      sourcePath: settings.tts.referenceAudioPath,
+                      referenceText: settings.tts.referenceText
+                    })
+                  }
+                >
+                  Salva come voce
+                </button>
+              ) : null}
               {settings.tts.referenceAudioPath?.trim() ? (
                 <button
                   type="button"
@@ -249,6 +408,28 @@ export function SettingsPanel({
           </label>
         </>
       ) : null}
+
+      <VoiceLibrary
+        voices={voices}
+        activeVoiceId={settings.tts.savedVoiceId}
+        seed={voiceSeed}
+        notify={notify}
+        onUse={(voice) => {
+          applySavedVoice(voice);
+          notify({ level: "success", title: "Voce selezionata", detail: voice.name });
+        }}
+        onCreated={(voice) => {
+          onVoicesChange([...voices, voice]);
+          applySavedVoice(voice);
+        }}
+        onRenamed={(voice) => {
+          onVoicesChange(voices.map((item) => (item.id === voice.id ? voice : item)));
+          if (settings.tts.savedVoiceId === voice.id) {
+            updateTts({ voiceName: voice.name });
+          }
+        }}
+        onRemoved={handleVoiceRemoved}
+      />
 
       <label className="setting-item">
         <span>Formato</span>

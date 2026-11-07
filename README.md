@@ -210,6 +210,23 @@ Nota etica:
 - non è progettata attorno all'imitazione di persone reali
 - la modalita default resta una voce neutra e leggibile gestita dal runtime locale
 
+### Libreria voci (clonazione e voci salvate)
+
+Dal pannello impostazioni, sezione **Voci salvate**, puoi creare voci nuove, dargli un nome e ritrovarle nelle conversioni successive:
+
+- **Nuova voce > Clona da campione** (Qwen): scegli un file audio oppure **registra dal microfono**, scrivi la trascrizione esatta del campione e salva. La voce compare nel menu **Voce clonata** quando il motore e Qwen.
+- **Nuova voce > Stile Supertonic**: importa un JSON creato con Supertone Voice Builder. La voce compare nel menu **Voce** di Supertonic, sotto "Voci salvate".
+- Un campione scelto manualmente si puo salvare al volo con **Salva come voce**.
+- Le voci si possono rinominare o eliminare; cliccando su una voce la si usa subito.
+
+I campioni vengono copiati (e normalizzati a WAV mono 24 kHz se `ffmpeg` e disponibile) in:
+
+```text
+~/Library/Application Support/Grillo parlante/voices/
+```
+
+Clona solo la tua voce o voci di persone che hanno dato il consenso.
+
 ### Override utili per sviluppo
 
 Variabili ambiente supportate:

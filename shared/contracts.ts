@@ -35,6 +35,34 @@ export interface TtsSettings {
   // Qwen: reference voice sample
   referenceAudioPath?: string;
   referenceText?: string;
+  // Id of the saved voice (voice library) currently selected, if any
+  savedVoiceId?: string;
+}
+
+export type SavedVoiceEngine = "qwen" | "supertonic";
+
+export interface SavedVoice {
+  id: string;
+  name: string;
+  engine: SavedVoiceEngine;
+  createdAt: string;
+  // How the sample was provided
+  source: "file" | "recording" | "style";
+  // Qwen: cloned voice sample stored inside the app voice library
+  referenceAudioPath?: string;
+  referenceText?: string;
+  // Supertonic: custom voice style JSON stored inside the app voice library
+  voiceStylePath?: string;
+}
+
+export interface NewVoiceInput {
+  name: string;
+  engine: SavedVoiceEngine;
+  // Existing file on disk (audio sample for Qwen, JSON style for Supertonic)
+  sourcePath?: string;
+  // Microphone recording already encoded as WAV
+  recordingWav?: Uint8Array;
+  referenceText?: string;
 }
 
 export type RuntimeState =

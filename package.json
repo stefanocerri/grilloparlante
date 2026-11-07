@@ -40,7 +40,10 @@
         "zip",
         "dmg"
       ],
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Grillo parlante usa il microfono solo quando registri un campione per creare una nuova voce clonata."
+      }
     }
   },
   "dependencies": {

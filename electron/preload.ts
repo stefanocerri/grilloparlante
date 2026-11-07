@@ -4,7 +4,9 @@ import type {
   ConversionSettings,
   InputFileMeta,
   JobEvent,
+  NewVoiceInput,
   RuntimeEvent,
+  SavedVoice,
   RuntimeStatus
 } from "../shared/contracts";
 
@@ -126,6 +128,17 @@ const api = {
 
     return openRendererReferencePicker();
   },
+  selectVoiceStyleFile: () =>
+    ipcRenderer.invoke("dialog:select-voice-style-file") as Promise<string | null>,
+  listVoices: () => ipcRenderer.invoke("voices:list") as Promise<SavedVoice[]>,
+  addVoice: (input: NewVoiceInput) =>
+    ipcRenderer.invoke("voices:add", input) as Promise<SavedVoice>,
+  renameVoice: (id: string, name: string) =>
+    ipcRenderer.invoke("voices:rename", { id, name }) as Promise<SavedVoice>,
+  removeVoice: (id: string) => ipcRenderer.invoke("voices:remove", id) as Promise<SavedVoice[]>,
+  openVoicesFolder: () => ipcRenderer.invoke("voices:open-folder") as Promise<void>,
+  requestMicrophoneAccess: () =>
+    ipcRenderer.invoke("media:request-microphone") as Promise<boolean>,
   startConversion: (file: InputFileMeta, settings: ConversionSettings) =>
     ipcRenderer.invoke("job:start", { file, settings }) as Promise<{ ok: true }>,
   cancelConversion: () => ipcRenderer.invoke("job:cancel") as Promise<{ ok: true }>,

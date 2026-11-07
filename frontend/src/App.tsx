@@ -9,7 +9,8 @@ import type {
   JobStats,
   RuntimeEvent,
   RuntimeProgress,
-  RuntimeStatus
+  RuntimeStatus,
+  SavedVoice
 } from "@shared/contracts";
 import { Dropzone } from "./components/Dropzone";
 import { RuntimeSetupPanel } from "./components/RuntimeSetupPanel";
@@ -45,6 +46,7 @@ export function App() {
     typeof window !== "undefined" && typeof window.grillo !== "undefined";
   const [selectedFile, setSelectedFile] = useState<InputFileMeta | null>(null);
   const [settings, setSettings] = useState<ConversionSettings>(DEFAULT_SETTINGS);
+  const [voices, setVoices] = useState<SavedVoice[]>([]);
   const [progress, setProgress] = useState(0);
   const [stageMessage, setStageMessage] = useState("In attesa di un file.");
   const [stats, setStats] = useState<JobStats>(EMPTY_STATS);
@@ -112,6 +114,12 @@ export function App() {
     }
 
     void refreshRuntimeStatus();
+    void window.grillo
+      .listVoices()
+      .then(setVoices)
+      .catch((voicesError) => {
+        console.warn("[grillo] voice library unavailable", voicesError);
+      });
 
     const disposeJob = window.grillo.onJobEvent((event) => {
       handleJobEvent(event);
@@ -543,6 +551,8 @@ export function App() {
           ...current.tts,
           engine: "qwen",
           voiceMode: "reference",
+          voiceName: "Voce da sample",
+          savedVoiceId: undefined,
           referenceAudioPath: filePath
         }
       }));
@@ -944,6 +954,9 @@ export function App() {
               onChange={setSettings}
               onToggleDetailedLogs={setShowDetailedLogs}
               onPickReferenceFile={() => void pickReferenceFile()}
+              voices={voices}
+              onVoicesChange={setVoices}
+              notify={pushToast}
             />
           </div>
         ) : null}

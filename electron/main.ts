@@ -1,19 +1,22 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell, systemPreferences } from "electron";
 import type { OpenDialogOptions } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { PythonJobBridge } from "./backendBridge";
 import { ManagedRuntimeManager } from "./runtimeManager";
+import { VoiceLibrary } from "./voiceLibrary";
 import type {
   ConversionSettings,
   InputFileMeta,
   JobEvent,
+  NewVoiceInput,
   RuntimeEvent
 } from "../shared/contracts";
 
 let mainWindow: BrowserWindow | null = null;
 const bridge = new PythonJobBridge();
 const runtimeManager = new ManagedRuntimeManager(emitRuntimeToRenderer);
+let voiceLibrary: VoiceLibrary | null = null;
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 
 function sanitizeImportedFileName(name: string) {
@@ -37,6 +40,14 @@ function detectFileType(filePath: string): InputFileMeta["type"] {
   }
 
   return "unknown";
+}
+
+function getVoiceLibrary() {
+  if (!voiceLibrary) {
+    voiceLibrary = new VoiceLibrary(path.join(app.getPath("userData"), "voices"));
+  }
+
+  return voiceLibrary;
 }
 
 function emitToRenderer(event: JobEvent) {
@@ -237,6 +248,63 @@ ipcMain.handle("dialog:select-reference-file", async () => {
   }
 
   return response.filePaths[0];
+});
+
+ipcMain.handle("dialog:select-voice-style-file", async () => {
+  const window =
+    BrowserWindow.getFocusedWindow() ??
+    (mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined);
+  const options: OpenDialogOptions = {
+    properties: ["openFile"],
+    filters: [{ name: "Supertonic voice style", extensions: ["json"] }]
+  };
+
+  const response = window
+    ? await dialog.showOpenDialog(window, options)
+    : await dialog.showOpenDialog(options);
+
+  if (response.canceled || response.filePaths.length === 0) {
+    return null;
+  }
+
+  return response.filePaths[0];
+});
+
+ipcMain.handle("voices:list", async () => {
+  return getVoiceLibrary().list();
+});
+
+ipcMain.handle("voices:add", async (_event, input: NewVoiceInput) => {
+  return getVoiceLibrary().add(input);
+});
+
+ipcMain.handle("voices:rename", async (_event, payload: { id: string; name: string }) => {
+  return getVoiceLibrary().rename(payload.id, payload.name);
+});
+
+ipcMain.handle("voices:remove", async (_event, id: string) => {
+  getVoiceLibrary().remove(id);
+  return getVoiceLibrary().list();
+});
+
+ipcMain.handle("voices:open-folder", async () => {
+  const directory = getVoiceLibrary().directory;
+  fs.mkdirSync(directory, { recursive: true });
+  await shell.openPath(directory);
+});
+
+ipcMain.handle("media:request-microphone", async () => {
+  if (process.platform !== "darwin") {
+    return true;
+  }
+
+  const status = systemPreferences.getMediaAccessStatus("microphone");
+
+  if (status === "granted") {
+    return true;
+  }
+
+  return systemPreferences.askForMediaAccess("microphone");
 });
 
 ipcMain.handle(
