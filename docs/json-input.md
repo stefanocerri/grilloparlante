@@ -17,7 +17,6 @@ Esempi pronti: [`backend/examples/articolo.json`](../backend/examples/articolo.j
 | `language` | no | Es. `it`. Se nelle impostazioni la lingua è "auto", viene usata questa. |
 | `author`, `source`, `url` | no | Metadati mostrati nella PWA. |
 | `publishedAt`, `expiresAt` | no | Date ISO 8601. `expiresAt` permette alla PWA di eliminare le notizie vecchie. |
-| `announceSource` | no | Default `true`: dopo il titolo viene letto "Fonte: …". |
 
 ## Tre forme possibili
 
@@ -26,7 +25,10 @@ Esempi pronti: [`backend/examples/articolo.json`](../backend/examples/articolo.j
 3. **Notiziario a sezioni**: `sections: [ { title, items: [...] } ]`.
 
 Ogni articolo diventa un capitolo (una traccia), quindi nella PWA si salta da una
-notizia all'altra. Il titolo della sezione viene letto prima del suo primo articolo.
+notizia all'altra.
+
+**Viene letto solo il testo** (`text` / `paragraphs`). Titolo, sezione, fonte, autore,
+link e date non vengono letti: restano come metadati da mostrare nella PWA.
 
 ## Testo
 

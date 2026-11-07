@@ -102,7 +102,6 @@ def extract_json(file_path: str) -> ExtractedDocument:
   chapters: list[Chapter] = []
   parts: list[str] = []
   offset = 0
-  previous_section = None
 
   for index, (section_title, item) in enumerate(_collect_items(data), start=1):
     where = f"articolo {index}"
@@ -116,15 +115,9 @@ def extract_json(file_path: str) -> ExtractedDocument:
     body = _text_of(item, where)
     item_source = _optional_str(item, "source")
 
-    spoken: list[str] = []
-    if section_title and section_title != previous_section:
-      spoken.append(f"{section_title}.")
-    previous_section = section_title or previous_section
-    spoken.append(item_title if item_title.endswith((".", "!", "?")) else f"{item_title}.")
-    if item_source and data.get("announceSource", True):
-      spoken.append(f"Fonte: {item_source}.")
-    spoken.append(body)
-    chapter_text = "\n\n".join(spoken)
+    # Only the article body is read aloud: title, source and section are metadata
+    # for the reader app, not spoken.
+    chapter_text = body
 
     if len(body) < 80:
       warnings.append(f"L'{where} ('{item_title}') ha un testo molto corto.")
