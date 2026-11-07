@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AppSnapshot, BookView, ChapterEntry } from "@shared/contracts";
-import { BookOpen, Check, Cloud, FolderOpen, Loader2, Pause, Play, Trash2 } from "lucide-react";
+import { BookOpen, Check, FolderOpen, Loader2, Pause, Play, Trash2 } from "lucide-react";
 import { formatDuration, formatMinutes } from "../lib/format";
 
 export function BookPage({ book, snapshot, onDeleted }: { book: BookView; snapshot: AppSnapshot; onDeleted: () => void }) {
@@ -41,7 +41,7 @@ export function BookPage({ book, snapshot, onDeleted }: { book: BookView; snapsh
   };
 
   const remove = async () => {
-    if (!confirm(`Eliminare "${book.title}" dal Mac e da Turso?`)) return;
+    if (!confirm(`Eliminare "${book.title}" dal Mac?`)) return;
     audio.current?.pause();
     await window.grillo.deleteBook(book.id);
     onDeleted();
@@ -103,7 +103,6 @@ export function BookPage({ book, snapshot, onDeleted }: { book: BookView; snapsh
             running?.chapterIndex === chapter.index || (!running?.chapterIndex && runningChapters[0] === chapter.index);
           const queued = book.queuedChapters.includes(chapter.index) && !isRunning;
           const ready = chapter.status === "ready";
-          const uploaded = book.uploadedChapters.includes(chapter.index);
           return (
             <li key={chapter.index} className="flex items-center gap-4 px-5 py-3">
               <span className="w-8 shrink-0 text-right font-mono text-xs text-mute">{chapter.index}</span>
@@ -124,8 +123,8 @@ export function BookPage({ book, snapshot, onDeleted }: { book: BookView; snapsh
                 )}
               </div>
               {ready && (
-                <span title={uploaded ? "Caricato su Turso" : "Non ancora su Turso"}>
-                  {uploaded ? <Cloud size={15} className="text-ok" /> : <Check size={15} className="text-mute" />}
+                <span title="Pronto">
+                  <Check size={15} className="text-ok" />
                 </span>
               )}
               {ready ? (

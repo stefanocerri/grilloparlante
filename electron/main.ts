@@ -2,42 +2,24 @@ import { app, BrowserWindow, dialog, ipcMain, protocol, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
-import QRCode from "qrcode";
-import type { AppSnapshot, ImportRequest, TursoSettings, VoiceInfo } from "../shared/contracts";
+import type { AppSnapshot, ImportRequest, VoiceInfo } from "../shared/contracts";
 import { bookDir, deleteBook, listBooks, toView } from "./library";
-import { backendRoot, libraryDir, readJson, userDataFile, writeJson } from "./paths";
+import { backendRoot, libraryDir, readJson } from "./paths";
 import { ConversionQueue } from "./queue";
 import { RuntimeManager } from "./runtime";
-import { TursoSync } from "./sync";
 
 protocol.registerSchemesAsPrivileged([
   { scheme: "grillo", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
 ]);
 
-const DEFAULT_PWA_URL = "https://grilloparlante.vercel.app";
-const settingsFile = () => userDataFile("settings.json");
-
-function loadTurso(): TursoSettings {
-  const stored = readJson<{ turso?: Partial<TursoSettings> }>(settingsFile(), {}).turso ?? {};
-  return {
-    url: stored.url ?? "",
-    writeToken: stored.writeToken ?? "",
-    readToken: stored.readToken ?? "",
-    pwaUrl: stored.pwaUrl || DEFAULT_PWA_URL
-  };
-}
-
 let mainWindow: BrowserWindow | null = null;
-let turso = loadTurso();
 let broadcastTimer: NodeJS.Timeout | null = null;
 
 const runtime = new RuntimeManager(broadcast);
-const sync = new TursoSync(() => turso, broadcast);
 const queue = new ConversionQueue({
   python: () => runtime.python,
   onChange: broadcast,
   onBookChanged: broadcast,
-  onChapterReady: (bookId) => sync.syncBook(bookId),
   log: (line) => {
     if (line.trim()) console.log(`[backend] ${line}`);
   }
@@ -59,14 +41,11 @@ function snapshot(): AppSnapshot {
     voices: voices(),
     books: listBooks().map((book) =>
       toView(book, {
-        uploaded: sync.uploadedChapters(book.id),
         queued: queue.queuedChapters(book.id),
         running: queue.runningChapters(book.id)
       })
     ),
     queue: queue.state(),
-    turso,
-    sync: sync.status,
     libraryDir: libraryDir()
   };
 }
@@ -147,7 +126,6 @@ if (!app.requestSingleInstanceLock()) {
     protocol.handle("grillo", serveFile);
     createWindow();
     void runtime.refresh();
-    sync.syncAll();
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
@@ -184,30 +162,8 @@ ipcMain.handle("queue:cancel", () => queue.cancelAll());
 
 ipcMain.handle("book:reveal", (_event, bookId: string) => shell.openPath(bookDir(bookId)));
 
-ipcMain.handle("book:delete", async (_event, bookId: string) => {
+ipcMain.handle("book:delete", (_event, bookId: string) => {
   queue.dequeueBook(bookId);
   deleteBook(bookId);
   broadcast();
-  await sync.deleteBook(bookId).catch(() => undefined);
-});
-
-ipcMain.handle("turso:save", (_event, next: TursoSettings) => {
-  const changedTarget = next.url !== turso.url || next.writeToken !== turso.writeToken;
-  turso = { ...next, pwaUrl: next.pwaUrl.trim() || DEFAULT_PWA_URL };
-  const stored = readJson<Record<string, unknown>>(settingsFile(), {});
-  writeJson(settingsFile(), { ...stored, turso });
-  if (changedTarget) sync.reset();
-  broadcast();
-});
-
-ipcMain.handle("turso:test", () => sync.testConnection());
-
-ipcMain.handle("turso:sync", () => sync.syncAll());
-
-/** QR per configurare la PWA: indirizzo e chiave di sola lettura viaggiano nel frammento #, mai al server. */
-ipcMain.handle("turso:qr", async () => {
-  if (!turso.url || !turso.readToken) return null;
-  const params = new URLSearchParams({ db: turso.url, token: turso.readToken });
-  const link = `${turso.pwaUrl.replace(/\/+$/, "")}/#setup?${params.toString()}`;
-  return { link, image: await QRCode.toDataURL(link, { margin: 1, width: 320 }) };
 });

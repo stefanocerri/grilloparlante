@@ -2,7 +2,7 @@
   "name": "grillo-parlante",
   "version": "0.1.0",
   "private": true,
-  "description": "Da PDF ad audiolibro con voce italiana, capitolo per capitolo.",
+  "description": "Da PDF, EPUB e articoli ad audio con voce italiana, capitolo per capitolo.",
   "main": "dist-electron/electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:main\" \"npm:dev:electron\"",
@@ -12,10 +12,8 @@
     "build": "npm run build:renderer && npm run build:main && electron-builder",
     "build:renderer": "vite build --config frontend/vite.config.ts",
     "build:main": "tsc -p electron/tsconfig.json",
-    "lint": "tsc --noEmit -p frontend/tsconfig.json && tsc --noEmit -p electron/tsconfig.json && tsc --noEmit -p pwa/tsconfig.json",
-    "preview": "vite preview --config frontend/vite.config.ts",
-    "dev:pwa": "vite --config pwa/vite.config.ts",
-    "build:pwa": "tsc --noEmit -p pwa/tsconfig.json && vite build --config pwa/vite.config.ts"
+    "lint": "tsc --noEmit -p frontend/tsconfig.json && tsc --noEmit -p electron/tsconfig.json",
+    "preview": "vite preview --config frontend/vite.config.ts"
   },
   "build": {
     "appId": "studio.minddimension.grilloparlante",
@@ -35,8 +33,7 @@
         "filter": [
           "**/*",
           "!.venv/**",
-          "!**/__pycache__/**",
-          "!runtime/voice_compare.py"
+          "!**/__pycache__/**"
         ]
       }
     ],
@@ -51,8 +48,7 @@
   "dependencies": {
     "lucide-react": "^0.511.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "qrcode": "^1.5.4"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.3",
@@ -68,7 +64,6 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "vite": "^5.4.18",
-    "wait-on": "^8.0.3",
-    "@types/qrcode": "^1.5.5"
+    "wait-on": "^8.0.3"
   }
 }

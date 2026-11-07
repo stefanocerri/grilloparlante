@@ -1,7 +1,6 @@
 .venv/
 node_modules/
 dist/
-dist-pwa/
 build/
 dist-electron/
 release/

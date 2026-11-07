@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { BookPage } from "./components/BookPage";
 import { JobBar } from "./components/JobBar";
 import { NewBook } from "./components/NewBook";
-import { PhoneSettings } from "./components/PhoneSettings";
 import { RuntimeSetup } from "./components/RuntimeSetup";
 import { Sidebar, View } from "./components/Sidebar";
 import { useSnapshot } from "./lib/useSnapshot";
@@ -28,9 +27,7 @@ export function App() {
       <main className="flex min-w-0 flex-1 flex-col">
         <div className="drag h-14 shrink-0" />
         <div className="flex-1 overflow-y-auto">
-          {view.kind === "phone" ? (
-            <PhoneSettings snapshot={snapshot} />
-          ) : book ? (
+          {book ? (
             <BookPage book={book} snapshot={snapshot} onDeleted={() => setView({ kind: "new" })} />
           ) : !engineReady ? (
             <RuntimeSetup runtime={snapshot.runtime} />

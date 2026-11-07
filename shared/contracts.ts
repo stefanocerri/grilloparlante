@@ -38,12 +38,9 @@ export interface Book {
   chapters: ChapterEntry[];
 }
 
-export type SyncState = "off" | "idle" | "uploading" | "error";
-
 export interface BookView extends Book {
   coverUrl?: string;
   chapterUrls: Record<number, string>;
-  uploadedChapters: number[];
   queuedChapters: number[];
 }
 
@@ -81,25 +78,11 @@ export interface RuntimeStatus {
   installHint?: string;
 }
 
-export interface TursoSettings {
-  url: string;
-  writeToken: string;
-  readToken: string;
-  pwaUrl: string;
-}
-
-export interface SyncStatus {
-  state: SyncState;
-  message: string;
-}
-
 export interface AppSnapshot {
   runtime: RuntimeStatus;
   voices: VoiceInfo[];
   books: BookView[];
   queue: QueueState;
-  turso: TursoSettings;
-  sync: SyncStatus;
   libraryDir: string;
 }
 

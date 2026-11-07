@@ -1,7 +1,7 @@
 import type { AppSnapshot } from "@shared/contracts";
-import { BookOpen, Plus, Smartphone } from "lucide-react";
+import { BookOpen, Plus } from "lucide-react";
 
-export type View = { kind: "new" } | { kind: "book"; id: string } | { kind: "phone" };
+export type View = { kind: "new" } | { kind: "book"; id: string };
 
 export function Sidebar({
   snapshot,
@@ -12,15 +12,6 @@ export function Sidebar({
   view: View;
   onNavigate: (view: View) => void;
 }) {
-  const syncColor =
-    snapshot.sync.state === "error"
-      ? "bg-warn"
-      : snapshot.sync.state === "uploading"
-        ? "bg-accent animate-pulse"
-        : snapshot.sync.state === "idle"
-          ? "bg-ok"
-          : "bg-black/20";
-
   return (
     <aside className="flex h-full w-72 shrink-0 flex-col border-r border-line bg-panel">
       <div className="drag h-14 shrink-0" />
@@ -68,16 +59,6 @@ export function Sidebar({
       </nav>
 
       <div className="border-t border-line p-3">
-        <button
-          onClick={() => onNavigate({ kind: "phone" })}
-          className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition ${
-            view.kind === "phone" ? "bg-white shadow-sm" : "hover:bg-black/5"
-          }`}
-        >
-          <Smartphone size={16} />
-          <span className="flex-1">Telefono e Turso</span>
-          <span className={`h-2 w-2 rounded-full ${syncColor}`} title={snapshot.sync.message} />
-        </button>
         <p className="mt-2 px-3 text-[11px] text-mute">{snapshot.runtime.message}</p>
       </div>
     </aside>

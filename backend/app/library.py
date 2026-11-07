@@ -1,7 +1,7 @@
 """Libreria locale: una cartella per libro con book.json, copertina e un MP3 per capitolo.
 
 books/<book_id>/
-  book.json          scheda del libro (letta dall'app e caricata su Turso)
+  book.json          scheda del libro (letta dall'app)
   cover.jpg|png      copertina, se il PDF ne ha una
   text/001.txt       testo pulito di ogni capitolo
   chapters/001.mp3   audio dei capitoli convertiti

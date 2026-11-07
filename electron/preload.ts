@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
-import type { AppSnapshot, ImportRequest, TursoSettings } from "../shared/contracts";
+import type { AppSnapshot, ImportRequest } from "../shared/contracts";
 
 const api = {
   snapshot: () => ipcRenderer.invoke("app:snapshot") as Promise<AppSnapshot>,
@@ -17,11 +17,7 @@ const api = {
   convert: (bookId: string, chapters: number[]) => ipcRenderer.invoke("book:convert", bookId, chapters) as Promise<void>,
   cancelQueue: () => ipcRenderer.invoke("queue:cancel") as Promise<void>,
   revealBook: (bookId: string) => ipcRenderer.invoke("book:reveal", bookId) as Promise<void>,
-  deleteBook: (bookId: string) => ipcRenderer.invoke("book:delete", bookId) as Promise<void>,
-  saveTurso: (settings: TursoSettings) => ipcRenderer.invoke("turso:save", settings) as Promise<void>,
-  testTurso: () => ipcRenderer.invoke("turso:test") as Promise<string>,
-  syncTurso: () => ipcRenderer.invoke("turso:sync") as Promise<void>,
-  tursoQr: () => ipcRenderer.invoke("turso:qr") as Promise<{ link: string; image: string } | null>
+  deleteBook: (bookId: string) => ipcRenderer.invoke("book:delete", bookId) as Promise<void>
 };
 
 export type GrilloApi = typeof api;

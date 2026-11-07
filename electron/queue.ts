@@ -6,7 +6,6 @@ interface QueueHooks {
   python: () => string | null;
   onChange: () => void;
   onBookChanged: (bookId: string) => void;
-  onChapterReady: (bookId: string, index: number) => void;
   log: (line: string) => void;
 }
 
@@ -137,7 +136,6 @@ export class ConversionQueue {
           this.hooks.onChange();
         } else if (event.type === "chapter") {
           this.hooks.onBookChanged(item.bookId);
-          this.hooks.onChapterReady(item.bookId, Number(event.payload.index));
         } else if (event.type === "log") {
           this.progress = { ...(this.progress ?? { bookId: item.bookId, progress: 0 }), label: String(event.payload.message) };
           this.hooks.onChange();
