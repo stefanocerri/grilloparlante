@@ -1,8 +1,6 @@
 {
-  "runtimeId": "qwen-managed",
+  "runtimeId": "omnivoice",
   "runtimeVersion": "1",
-  "displayName": "Qwen3-TTS 0.6B Base",
-  "packageSpec": "qwen-tts==0.1.1",
-  "modelName": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
-  "supportedLanguages": ["it", "en"]
+  "displayName": "OmniVoice",
+  "modelName": "k2-fsa/OmniVoice"
 }

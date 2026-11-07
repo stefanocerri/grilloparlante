@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "articolo",
+  "title": "Perché le foglie in autunno cambiano colore",
+  "author": "Redazione di esempio",
+  "source": "Esempio Scienza",
+  "url": "https://example.com/foglie",
+  "language": "it",
+  "publishedAt": "2026-11-05T09:00:00+01:00",
+  "paragraphs": [
+    "D'estate le foglie sono verdi grazie alla clorofilla, la sostanza che permette alle piante di trasformare la luce del sole in energia.",
+    "In autunno le giornate si accorciano e fa più freddo. L'albero smette di produrre clorofilla e quella che resta si degrada. A quel punto diventano visibili altri pigmenti, i carotenoidi, che c'erano già ma erano coperti dal verde: sono loro a dare il giallo e l'arancione.",
+    "Il rosso invece è diverso: viene prodotto proprio in autunno, quando la foglia accumula zuccheri. Per questo gli autunni con giornate soleggiate e notti fresche sono quelli con i colori più accesi."
+  ]
+}

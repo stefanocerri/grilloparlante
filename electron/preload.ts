@@ -1,156 +1,37 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
-import { pathToFileURL } from "node:url";
-import type {
-  ConversionSettings,
-  InputFileMeta,
-  JobEvent,
-  RuntimeEvent,
-  RuntimeStatus
-} from "../shared/contracts";
+import type { AppSnapshot, ImportRequest, TursoSettings } from "../shared/contracts";
 
-function detectFileType(filePath: string): InputFileMeta["type"] {
-  const extension = filePath.split(".").pop()?.toLowerCase();
-
-  if (extension === "pdf") {
-    return "pdf";
-  }
-
-  if (extension === "epub") {
-    return "epub";
-  }
-
-  if (extension === "txt" || extension === "md") {
-    return "txt";
-  }
-
-  return "unknown";
-}
-
-function openRendererFilePicker(): Promise<InputFileMeta | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".pdf,.epub,.txt,.md";
-    input.style.position = "fixed";
-    input.style.left = "-9999px";
-
-    input.addEventListener(
-      "change",
-      () => {
-        const file = input.files?.[0];
-        input.remove();
-
-        if (!file) {
-          resolve(null);
-          return;
-        }
-
-        const filePath = webUtils.getPathForFile(file);
-
-        if (!filePath) {
-          resolve(null);
-          return;
-        }
-
-        resolve({
-          name: file.name,
-          path: filePath,
-          type: detectFileType(filePath),
-          size: file.size
-        });
-      },
-      { once: true }
-    );
-
-    document.body.appendChild(input);
-    input.click();
-  });
-}
-
-function openRendererReferencePicker(): Promise<string | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".wav,.mp3,.m4a,.aiff,.aif,.flac,.ogg";
-    input.style.position = "fixed";
-    input.style.left = "-9999px";
-
-    input.addEventListener(
-      "change",
-      () => {
-        const file = input.files?.[0];
-        input.remove();
-
-        if (!file) {
-          resolve(null);
-          return;
-        }
-
-        const filePath = webUtils.getPathForFile(file);
-        resolve(filePath || null);
-      },
-      { once: true }
-    );
-
-    document.body.appendChild(input);
-    input.click();
-  });
+function subscribe<T>(channel: string, listener: (payload: T) => void) {
+  const wrapped = (_event: unknown, payload: T) => listener(payload);
+  ipcRenderer.on(channel, wrapped);
+  return () => {
+    ipcRenderer.removeListener(channel, wrapped);
+  };
 }
 
 const api = {
-  selectFile: async () => {
-    try {
-      console.log("[grillo] opening native file dialog");
-      const result = await (ipcRenderer.invoke("dialog:select-file") as Promise<InputFileMeta | null>);
-      console.log("[grillo] native file dialog result", result);
-      return result;
-    } catch {
-      // Fall through to renderer-owned file input fallback.
-    }
-
-    console.warn("[grillo] native dialog failed, using renderer fallback");
-    return openRendererFilePicker();
-  },
-  importFileBuffer: (name: string, bytes: ArrayBuffer) =>
-    ipcRenderer.invoke("file:cache-import", {
-      name,
-      bytes: Array.from(new Uint8Array(bytes))
-    }) as Promise<InputFileMeta>,
-  selectReferenceFile: async () => {
-    try {
-      const result = await (ipcRenderer.invoke("dialog:select-reference-file") as Promise<string | null>);
-      return result;
-    } catch {
-      // Fall through to renderer-owned file input fallback.
-    }
-
-    return openRendererReferencePicker();
-  },
-  startConversion: (file: InputFileMeta, settings: ConversionSettings) =>
-    ipcRenderer.invoke("job:start", { file, settings }) as Promise<{ ok: true }>,
-  cancelConversion: () => ipcRenderer.invoke("job:cancel") as Promise<{ ok: true }>,
-  openOutputFolder: (targetPath: string) =>
-    ipcRenderer.invoke("shell:open-path", targetPath) as Promise<void>,
-  getRuntimeStatus: () => ipcRenderer.invoke("runtime:status") as Promise<RuntimeStatus>,
-  installRuntime: () => ipcRenderer.invoke("runtime:install") as Promise<RuntimeStatus>,
-  repairRuntime: () => ipcRenderer.invoke("runtime:repair") as Promise<RuntimeStatus>,
-  removeRuntime: () => ipcRenderer.invoke("runtime:remove") as Promise<RuntimeStatus>,
-  minimizeWindow: () => ipcRenderer.invoke("window:minimize") as Promise<void>,
-  toggleFullscreen: () =>
-    ipcRenderer.invoke("window:toggle-fullscreen") as Promise<void>,
-  closeWindow: () => ipcRenderer.invoke("window:close") as Promise<void>,
-  openDevTools: () => ipcRenderer.invoke("devtools:open") as Promise<void>,
-  fileUrl: (targetPath: string) => pathToFileURL(targetPath).toString(),
-  onJobEvent: (listener: (event: JobEvent) => void) => {
-    const wrapped = (_event: unknown, payload: JobEvent) => listener(payload);
-    ipcRenderer.on("job:event", wrapped);
-    return () => ipcRenderer.removeListener("job:event", wrapped);
-  },
-  onRuntimeEvent: (listener: (event: RuntimeEvent) => void) => {
-    const wrapped = (_event: unknown, payload: RuntimeEvent) => listener(payload);
-    ipcRenderer.on("runtime:event", wrapped);
-    return () => ipcRenderer.removeListener("runtime:event", wrapped);
-  }
+  snapshot: () => ipcRenderer.invoke("app:snapshot") as Promise<AppSnapshot>,
+  onSnapshot: (listener: (snapshot: AppSnapshot) => void) => subscribe("app:snapshot", listener),
+  /** File trascinato sull'icona nella barra dei menu. */
+  onFileDropped: (listener: (filePath: string) => void) => subscribe("file:dropped", listener),
+  hide: () => ipcRenderer.invoke("app:hide") as Promise<void>,
+  quit: () => ipcRenderer.invoke("app:quit") as Promise<void>,
+  installRuntime: () => ipcRenderer.invoke("runtime:install") as Promise<void>,
+  pickBook: () => ipcRenderer.invoke("dialog:pick-book") as Promise<string | null>,
+  confirm: (message: string, detail?: string) => ipcRenderer.invoke("dialog:confirm", message, detail) as Promise<boolean>,
+  pathForFile: (file: File) => webUtils.getPathForFile(file),
+  importBook: (request: ImportRequest) => ipcRenderer.invoke("book:import", request) as Promise<string>,
+  convert: (bookId: string, chapters: number[]) => ipcRenderer.invoke("book:convert", bookId, chapters) as Promise<void>,
+  cancelQueue: () => ipcRenderer.invoke("queue:cancel") as Promise<void>,
+  revealBook: (bookId: string) => ipcRenderer.invoke("book:reveal", bookId) as Promise<void>,
+  revealLibrary: () => ipcRenderer.invoke("library:reveal") as Promise<void>,
+  deleteBook: (bookId: string) => ipcRenderer.invoke("book:delete", bookId) as Promise<void>,
+  saveTurso: (settings: TursoSettings) => ipcRenderer.invoke("turso:save", settings) as Promise<void>,
+  testTurso: () => ipcRenderer.invoke("turso:test") as Promise<string>,
+  syncTurso: () => ipcRenderer.invoke("turso:sync") as Promise<void>,
+  tursoQr: () => ipcRenderer.invoke("turso:qr") as Promise<{ link: string; image: string } | null>
 };
+
+export type GrilloApi = typeof api;
 
 contextBridge.exposeInMainWorld("grillo", api);

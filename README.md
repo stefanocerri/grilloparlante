@@ -1,389 +1,111 @@
 # Grillo parlante
 
-App desktop locale macOS-first per convertire PDF, EPUB e file testuali in output audio organizzati per libro e capitolo.
+Da libri e articoli ad audio con voce italiana, capitolo per capitolo, tutto in locale sul Mac.
 
-Stack:
-- Electron
-- React
-- Tailwind CSS
-- TypeScript
-- Python backend locale
-- TTS selezionabile dalla UI:
-  - Supertonic 3 (default): on-device via ONNX, multilingua, veloce, voci gia pronte
-  - Qwen3-TTS 0.6B: motore beta gestito dall'app per voice cloning da sample
-- ffmpeg per merge e conversione audio
+È un'app della **barra dei menu** (niente icona nel Dock): clic sull'icona per aprire il pannello, trascina un
+file sull'icona per importarlo, tasto destro per uscire. Mentre converte, accanto all'icona compare la percentuale.
 
-## Obiettivo del MVP
+1. **Importa** un PDF, un EPUB, un testo (TXT/MD) o un articolo/notiziario in JSON: l'app estrae il testo e
+   divide i capitoli (segnalibri del PDF, indice dell'EPUB, oppure un capitolo per articolo).
+2. **Scegli la voce** tra quattro voci italiane: Marco, Paolo, Giulia e Anna.
+3. **Converti** quando vuoi: un capitolo, "fino al capitolo N" o tutto. Se chiudi l'app, la conversione
+   riparte da dove era rimasta.
+4. **Turso**: ogni capitolo pronto viene caricato sul tuo database Turso. La PWA di ascolto inclusa in `pwa/`
+   (e qualunque altra PWA che usa lo stesso schema) legge da lì. Le notizie con `expiresAt` passato vengono
+   tolte da Turso; sul Mac restano.
 
-Questa foundation implementa un flusso reale:
+Tutto gira sul Mac e senza costi: la sintesi usa [OmniVoice](https://huggingface.co/k2-fsa/OmniVoice) in locale,
+sulla GPU del Mac quando c'è. I pesi di OmniVoice hanno licenza CC-BY-NC, quindi il progetto è solo per uso
+personale e non commerciale.
 
-1. carica un file locale da UI
-2. avvia un job Python locale via subprocess
-3. estrae il testo
-4. prova a trovare capitoli via TOC o heading
-5. crea chunk leggibili
-6. genera audio chunk per chunk
-7. unisce i chunk per capitolo quando richiesto
-8. scrive manifest, raw text, chapter index e output audio
-9. riporta progress, step, log, warning e risultato nella UI
+## Avvio in sviluppo
 
-In sviluppo locale, se Qwen beta o ffmpeg non sono disponibili, la pipeline non si rompe:
-- Qwen fallback: placeholder WAV generato localmente
-- ffmpeg fallback: concatenazione WAV nativa
-
-Questo rende il progetto eseguibile subito e pronto a ricevere integrazioni più forti.
-
-## Struttura progetto
-
-```text
-.
-├── backend/
-│   ├── app/
-│   │   ├── audio/
-│   │   ├── chaptering/
-│   │   ├── chunking/
-│   │   ├── config/
-│   │   ├── extractors/
-│   │   ├── jobs/
-│   │   ├── outputs/
-│   │   ├── tts/
-│   │   ├── utils/
-│   │   └── cli.py
-│   ├── examples/
-│   └── requirements.txt
-├── docs/
-│   ├── architecture.md
-│   └── design-system.md
-├── electron/
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── lib/
-│   │   └── styles/
-│   ├── index.html
-│   └── vite.config.ts
-├── output/
-├── scripts/
-│   └── bootstrap_backend.sh
-└── shared/
-    └── contracts.ts
-```
-
-## Architettura scelta
-
-Electron e Python comunicano tramite subprocess locale con `stdout` strutturato in JSON lines.
-
-Motivi della scelta:
-- niente server locale da mantenere
-- facile progress reporting
-- log in tempo reale
-- cancellation semplice con `SIGTERM`
-- packaging e debug più lineari su macOS
-
-Dettagli estesi: [docs/architecture.md](/Users/stefanocerri/Progetti/Mind Dimension/Grillo parlante/docs/architecture.md)
-
-## UI e design
-
-La UI segue una direzione editoriale / brutalist-light:
-- titoli oversize
-- header accent forte
-- griglia netta
-- palette ridotta
-- bordi sottili
-- log e statistiche trattati come elementi grafici, non solo tecnici
-
-Design tokens e componenti: [docs/design-system.md](/Users/stefanocerri/Progetti/Mind Dimension/Grillo parlante/docs/design-system.md)
-
-## Setup macOS
-
-### 1. Prerequisiti per sviluppo locale
-
-Installa Homebrew se non è già presente, poi:
-
-```bash
-brew install python@3.11 ffmpeg
-```
-
-Verifica:
-
-```bash
-python3 --version
-ffmpeg -version
-node --version
-npm --version
-```
-
-Consigliato:
-- Node 20+
-- Python 3.11+
-
-### 2. Dipendenze frontend / desktop
-
-Dalla root del progetto:
+Prerequisiti: Node 20+, Python 3.10+ (`brew install python@3.12`).
 
 ```bash
 npm install
 ```
 
-### 3. Ambiente Python locale per sviluppo
-
-Usa il virtual environment dentro `backend/.venv`:
-
-```bash
-python3 -m venv backend/.venv
-source backend/.venv/bin/activate
-pip install --upgrade pip
-pip install -r backend/requirements.txt
-```
-
-In alternativa puoi usare lo script:
-
 ```bash
 ./scripts/bootstrap_backend.sh
 ```
-
-## Motore Supertonic (default)
-
-[Supertonic](https://github.com/supertone-inc/supertonic) e il motore TTS predefinito. Gira interamente in locale tramite ONNX Runtime (nessuna GPU, nessun server, nessun runtime gestito da installare).
-
-Vantaggi nel progetto:
-- **Velocita**: molto piu veloce del tempo reale anche su CPU. Su Mac Apple Silicon, misurato su italiano, RTF ~0.09-0.18 single thread a seconda della qualita.
-- **Italiano nativo**: 31 lingue supportate, italiano incluso (`lang="it"`).
-- **Zero setup voce**: 10 voci preset pronte (`F1..F5`, `M1..M5`). Non serve registrare o fornire un sample.
-- **Voce personalizzata opzionale**: si puo incollare un JSON creato con Supertone Voice Builder (campo "Voce personalizzata").
-- **Parallelizzazione**: la pipeline sintetizza i chunk su piu worker in parallelo (uno per core), riusando una sessione ONNX per thread.
-
-Controlli in UI (pannello impostazioni):
-- **Motore voce**: select Supertonic / Qwen.
-- **Voce**: una delle 10 preset.
-- **Qualita**: 5 (veloce) / 8 (bilanciata) / 10 (alta) / 12 (massima) step.
-- **Velocita**: rispettata nativamente (0.7-1.4), a differenza di Qwen.
-
-Override ambiente per sviluppo:
-- `GRILLO_SUPERTONIC_MODEL` (default `supertonic-3`)
-- `GRILLO_SUPERTONIC_MODEL_DIR` (cartella modelli custom)
-- `GRILLO_SUPERTONIC_WORKERS` (numero di worker paralleli)
-- `GRILLO_SUPERTONIC_INTRA_THREADS` (thread ONNX per worker)
-- `GRILLO_SUPERTONIC_STEPS` (step di default se non passati dai settings)
-
-Il modello (~99M parametri) viene scaricato da Hugging Face al primo utilizzo e poi resta in cache locale.
-
-### Stima tempi: 200 pagine da un PDF
-
-Riferimento misurato su Mac Apple Silicon, italiano, chunk in parallelo (4 worker):
-
-- 200 pagine ≈ 300.000-360.000 caratteri ≈ ~5,5-6 ore di audio.
-- Qualita bilanciata (8 step): circa **15-25 minuti** totali di conversione.
-- Qualita veloce (5 step): circa **10-15 minuti**.
-
-Per confronto, lo stesso libro con Qwen 0.6B su CPU richiederebbe diverse ore. Tempi reali variano con CPU, numero di worker e densita testo del PDF.
-
-## Configurazione Qwen beta
-
-L'integrazione non assume piu un comando CLI nel `PATH`.
-
-Il progetto ora usa due modalita:
-- sviluppo locale: se Qwen non e disponibile nel runtime gestito, la pipeline puo ancora usare il fallback placeholder per non bloccare il lavoro
-- app desktop packaged: l'utente vede un pannello `Motore voce` e puo installare o riparare il runtime Qwen dal primo avvio senza aprire Terminale
-
-Il runtime gestito viene preparato sotto:
-
-```text
-~/Library/Application Support/Grillo parlante/runtimes/qwen/
-```
-
-Durante il setup l'app:
-- crea un ambiente Python dedicato
-- installa le dipendenze backend
-- installa il pacchetto `qwen-tts`
-- verifica che il runtime Qwen sia importabile
-- genera una reference voice neutra locale per la modalita `standard`
-
-Il backend usa Qwen tramite import Python diretto, con rilevamento automatico `it` / `en`.
-Il download completo del modello viene completato al primo utilizzo reale della sintesi e puo richiedere qualche minuto.
-
-Percorso utile:
-[backend/app/tts/qwen_runner.py](/Users/stefanocerri/Progetti/Mind Dimension/Grillo parlante/backend/app/tts/qwen_runner.py)
-
-Nota etica:
-- la struttura supporta gia reference audio esplicito tramite `referenceAudioPath`
-- non è progettata attorno all'imitazione di persone reali
-- la modalita default resta una voce neutra e leggibile gestita dal runtime locale
-
-### Override utili per sviluppo
-
-Variabili ambiente supportate:
-- `GRILLO_BOOTSTRAP_PYTHON_PATH`: Python usato per creare il runtime gestito
-- `GRILLO_PYTHON_PATH`: Python usato dal backend in sviluppo
-- `GRILLO_QWEN_MODEL`: modello Qwen da caricare
-- `GRILLO_QWEN_DEVICE`: forza `cpu`, `cuda` o `auto`
-- `GRILLO_QWEN_DTYPE`: `float32`, `float16` o `bfloat16`
-- `GRILLO_DEFAULT_REFERENCE_AUDIO`: reference audio locale custom per test
-- `GRILLO_DEFAULT_REFERENCE_TEXT`: trascrizione del sample neutro gestito
-
-Se sul Mac non esiste alcun Python bootstrap, l'app mostra anche il comando suggerito:
-
-```bash
-brew install python@3.11
-```
-
-### Benchmark developer Qwen
-
-Per misurare cold start, prompt build e sintesi del runtime beta puoi usare:
-
-```bash
-backend/.venv/bin/python backend/runtime/qwen_benchmark.py \
-  --model-name "Qwen/Qwen3-TTS-12Hz-0.6B-Base" \
-  --text "Questo e un test rapido della voce." \
-  --reference-path "/percorso/sample.wav" \
-  --reference-text "Questo e il testo realmente letto nel sample." \
-  --output-path "/tmp/grillo-qwen-benchmark.wav"
-```
-
-Metriche minime registrate dal benchmark:
-- modello e device usato
-- versione Python e piattaforma
-- presenza o meno della trascrizione sample
-- tempo di load modello
-- tempo di costruzione prompt voce
-- tempo di sintesi
-- tempo totale
-- sample rate e dimensione output
-
-Gate pratici per promuovere Qwen oltre la beta:
-- installazione del runtime stabile su Mac reali senza interventi manuali extra
-- una conversione di capitolo breve deve chiudersi senza crash ripetibili
-- cold start e latenza devono restare accettabili su hardware target
-- la qualita percepita deve superare nettamente il motore macOS e rendere inutile XTTS nel progetto
-
-## Sviluppo locale
-
-Avvio completo desktop + renderer:
 
 ```bash
 npm run dev
 ```
 
-Questo lancia:
-- Vite renderer su `http://localhost:5173`
-- TypeScript watch per Electron
-- Electron desktop app con reload del processo principale
+`bootstrap_backend.sh` crea `backend/.venv` con PyTorch e OmniVoice e scarica il modello (circa 5 GB in tutto).
+Nell'app pacchettizzata lo stesso passo si fa dal pulsante "Installa il motore voce" al primo avvio.
 
-Il backend Python parte solo quando premi `Convert`.
+## Libreria
 
-In sviluppo:
-- puoi installare il runtime Qwen dal pannello `Motore voce`
-- se non lo installi, la conversione resta eseguibile con audio placeholder
-- `Lingua = Auto` rileva se il testo e in italiano o inglese e usa il profilo corretto
-- se usi `voiceMode = reference`, inserisci un percorso valido in `Audio riferimento`
-- se aggiungi anche `Testo del sample`, il clone di Qwen di solito migliora sensibilmente
+La libreria si trova in `~/Documents/Grillo Parlante/books/`, con una cartella per libro o articolo:
+
+```text
+book.json          titolo, tipo (kind), voce, capitoli con stato e durata
+cover.jpg          copertina, se la sorgente ne ha una
+text/001.txt       testo pulito di ogni capitolo
+chapters/001.mp3   audio dei capitoli convertiti (48 kbps, circa 21 MB per ora)
+```
+
+`kind` distingue `libro`, `documentazione`, `articolo` e `notiziario`. Per articoli e notizie viene letto solo il
+testo; titolo, fonte, link e date restano in `book.json` (campo `meta` di ogni capitolo).
+
+## Turso
+
+Il piano gratuito di Turso ha 5 GB, cioè circa 25–30 libri da 8 ore. Configurazione una tantum:
+
+```bash
+turso db create grillo
+turso db show grillo --url
+turso db tokens create grillo
+turso db tokens create grillo --read-only
+```
+
+Nel pannello apri le **Impostazioni** (ingranaggio) e inserisci indirizzo, token di scrittura (resta sul Mac) e
+token di sola lettura (da dare alle PWA). Schema delle tabelle in `shared/turso.ts`. Con l'indirizzo della
+PWA compilato, nelle Impostazioni compare il **QR** che collega il telefono.
+
+## App per il telefono (PWA)
+
+`pwa/` contiene un'app di ascolto in stile Audible:
+- **Libreria**: copertine, card "Continua ad ascoltare", etichette per articoli e notiziari; le notizie scadute
+  non compaiono.
+- **Scheda**: elenco dei capitoli, con fonte e sezione per gli articoli, e download per l'ascolto offline.
+- **Player**: riprende da dove eri rimasto e offre velocità da 0,8× a 2×, salti di ±30 secondi, parte
+  precedente e successiva, timer di spegnimento e comandi nella schermata di blocco.
+
+Legge direttamente da Turso con il token di sola lettura. Per pubblicarla gratis su Vercel basta importare il
+repository: la configurazione è già in `vercel.json`. Poi incolla l'indirizzo nelle Impostazioni dell'app Mac.
+
+Per lo sviluppo, con un database di prova che imita Turso su `http://127.0.0.1:8099`:
+
+```bash
+GRILLO_TURSO_PROXY=http://127.0.0.1:8099 npm run dev:pwa
+```
+
+## Articoli e notiziari in JSON
+
+Formato ed esempi in [docs/json-input.md](docs/json-input.md), con `backend/examples/articolo.json` e
+`backend/examples/notiziario.json`.
+
+## Backend da riga di comando
+
+```bash
+cd backend && .venv/bin/python -m app.cli import --input libro.pdf --voice uomo_01 --library ~/Grillo
+```
+
+```bash
+cd backend && .venv/bin/python -m app.cli convert --book <id> --chapters 1-3 --library ~/Grillo
+```
+
+Le voci stanno in `backend/voices/`: un campione WAV con la trascrizione e un'anteprima MP3. Per
+aggiungerne una basta un campione pulito di 10–20 secondi più la riga corrispondente in `voices.json`.
 
 ## Build
-
-Build renderer + main Electron + packaging macOS:
 
 ```bash
 npm run build
 ```
 
-Output previsto:
-- renderer compilato in `dist/`
-- processo Electron compilato in `dist-electron/`
-- pacchetto desktop in `release/`
-
-Comportamento atteso della build desktop:
-- i file sotto `backend/runtime/` vengono inclusi con il backend nei resource bundle Electron
-- al primo avvio packaged, il pannello `Motore voce` propone l'installazione del runtime gestito
-- la conversione packaged viene bloccata finche il runtime non e pronto o riparato
-
-## Disinstallazione runtime
-
-Buttare solo la `.app` nel cestino non rimuove automaticamente i dati del runtime in `Application Support`.
-
-Per una rimozione pulita:
-1. apri l'app
-2. usa `Rimuovi runtime` dal pannello `Motore voce`
-3. poi elimina la `.app` se vuoi disinstallare tutto
-
-Questo flusso permette di riparare, aggiornare o rimuovere completamente il motore senza toccare Python globale o il `PATH`.
-
-## Pipeline backend
-
-Moduli principali:
-- `file_detector.py`
-- `extractors/pdf_extractor.py`
-- `extractors/epub_extractor.py`
-- `chaptering/toc_detector.py`
-- `chaptering/heading_detector.py`
-- `chunking/chunker.py`
-- `tts/qwen_runner.py`
-- `audio/ffmpeg_merge.py`
-- `outputs/manifest_writer.py`
-- `jobs/conversion_job.py`
-
-Comportamento:
-- PDF: prova estrazione testuale diretta
-- EPUB: parsing nativo del contenuto HTML/XML
-- TXT/MD: supporto semplice già incluso
-- TOC prima, heading dopo, fallback sectioning infine
-- chunking guidato da lunghezza target e break di frase
-- audio per chunk
-- merge finale per capitolo se attivo
-- output manifestato in JSON
-
-## Schermate implementate
-
-- Home / Dropzone
-- Processing view con progress, step rail, stats e log
-- Result view con capitoli, preview player e open output folder
-- Error state con dettaglio tecnico espandibile
-
-## Formati input supportati nel MVP
-
-- PDF
-- EPUB
-- TXT
-- MD
-
-OCR:
-- non implementato nel MVP
-- architettura pronta per un extractor/fallback OCR futuro
-
-## Output prodotto
-
-Struttura tipica:
-
-```text
-output/
-  my-book-1712270000/
-    manifest.json
-    raw_text.txt
-    chapters.json
-    chunks.json
-    audio/
-      chapter-01-intro-part-001.wav
-      chapter-01-intro-part-002.wav
-    final/
-      chapter-01.mp3
-      chapter-02.mp3
-```
-
-Manifest esempio:
-[backend/examples/sample_manifest.json](/Users/stefanocerri/Progetti/Mind Dimension/Grillo parlante/backend/examples/sample_manifest.json)
-
-## Scelte tecniche importanti
-
-- niente backend remoto obbligatorio
-- niente overengineering con API server locale persistente
-- TTS pluggable
-- ffmpeg opzionale ma consigliato
-- output e log pensati per debugging reale
-- UI non bloccante con event stream dal backend
-
-## Prossimi step consigliati
-
-1. Validare il runtime Qwen gestito su build packaged macOS reali.
-2. Aggiungere OCR opzionale per PDF scansionati.
-3. Migliorare il chaptering con TOC strutturata EPUB e heading scoring più ricco.
-4. Aggiungere settings persistenti su disco.
-5. Valutare se bundlare anche un Python relocatable per eliminare ogni bootstrap esterno.
+Genera l'app macOS in `release/`. Dettagli tecnici in [docs/architecture.md](docs/architecture.md).

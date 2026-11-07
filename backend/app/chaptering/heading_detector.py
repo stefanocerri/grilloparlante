@@ -78,7 +78,7 @@ def fallback_sections(text: str, target_chars: int = 9000) -> list[Chapter]:
     section = text[start:end].strip()
     if not section:
       continue
-    title = f"Section {index + 1:02d}"
+    title = f"Parte {index + 1}"
     chapters.append(
       Chapter(
         id=f"chapter-{index + 1:02d}-{slugify(title)}",
