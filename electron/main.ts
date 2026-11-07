@@ -1,25 +1,41 @@
-import { app, BrowserWindow, dialog, ipcMain, protocol, shell } from "electron";
+import { app, dialog, ipcMain, protocol, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
-import type { AppSnapshot, ImportRequest, VoiceInfo } from "../shared/contracts";
-import { bookDir, deleteBook, listBooks, toView } from "./library";
-import { backendRoot, libraryDir, readJson } from "./paths";
+import type { AppSnapshot, ImportRequest, TursoSettings, VoiceInfo } from "../shared/contracts";
+import { bookDir, deleteBook, listBooks, readBook, toView } from "./library";
+import { backendRoot, libraryDir, readJson, userDataFile, writeJson } from "./paths";
+import { getPopover, hidePopover, withPopoverPinned } from "./popover";
 import { ConversionQueue } from "./queue";
 import { RuntimeManager } from "./runtime";
+import { TursoSync } from "./sync";
+import { createTray, updateTray } from "./tray";
 
 protocol.registerSchemesAsPrivileged([
   { scheme: "grillo", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
 ]);
 
-let mainWindow: BrowserWindow | null = null;
+const SUPPORTED = new Set([".pdf", ".epub", ".txt", ".md", ".json"]);
+const SYNC_EVERY_MS = 60 * 60 * 1000;
+const settingsFile = () => userDataFile("settings.json");
+
+function loadTurso(): TursoSettings {
+  const stored = readJson<{ turso?: Partial<TursoSettings> }>(settingsFile(), {}).turso ?? {};
+  return { url: stored.url ?? "", writeToken: stored.writeToken ?? "", readToken: stored.readToken ?? "" };
+}
+
+let turso = loadTurso();
 let broadcastTimer: NodeJS.Timeout | null = null;
 
 const runtime = new RuntimeManager(broadcast);
+const sync = new TursoSync(() => turso, broadcast);
 const queue = new ConversionQueue({
   python: () => runtime.python,
   onChange: broadcast,
-  onBookChanged: broadcast,
+  onBookChanged: (bookId) => {
+    broadcast();
+    sync.syncBook(bookId);
+  },
   log: (line) => {
     if (line.trim()) console.log(`[backend] ${line}`);
   }
@@ -41,11 +57,14 @@ function snapshot(): AppSnapshot {
     voices: voices(),
     books: listBooks().map((book) =>
       toView(book, {
+        uploaded: sync.uploadedChapters(book.id),
         queued: queue.queuedChapters(book.id),
         running: queue.runningChapters(book.id)
       })
     ),
     queue: queue.state(),
+    turso,
+    sync: sync.status,
     libraryDir: libraryDir()
   };
 }
@@ -54,7 +73,10 @@ function broadcast() {
   if (broadcastTimer) return;
   broadcastTimer = setTimeout(() => {
     broadcastTimer = null;
-    mainWindow?.webContents.send("app:snapshot", snapshot());
+    const current = snapshot();
+    updateTray(current);
+    const popover = getPopover();
+    if (!popover.isDestroyed()) popover.webContents.send("app:snapshot", current);
   }, 120);
 }
 
@@ -95,46 +117,33 @@ function serveFile(request: Request): Response {
   });
 }
 
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1240,
-    height: 840,
-    minWidth: 980,
-    minHeight: 680,
-    backgroundColor: "#f4f1eb",
-    titleBarStyle: "hiddenInset",
-    trafficLightPosition: { x: 18, y: 18 },
-    webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true }
-  });
-
-  if (app.isPackaged) {
-    void mainWindow.loadFile(path.join(app.getAppPath(), "dist", "index.html"));
-  } else {
-    void mainWindow.loadURL(process.env.GRILLO_RENDERER_URL || "http://127.0.0.1:5173");
-  }
-
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-  });
+function sendDroppedFile(files: string[]) {
+  const file = files.find((item) => SUPPORTED.has(path.extname(item).toLowerCase()));
+  if (!file) return;
+  const popover = getPopover();
+  const send = () => popover.webContents.send("file:dropped", file);
+  if (popover.webContents.isLoading()) popover.webContents.once("did-finish-load", send);
+  else send();
 }
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on("second-instance", () => mainWindow?.focus());
   app.whenReady().then(() => {
+    // App da barra dei menu: niente icona nel Dock (vedi anche LSUIElement nel package.json).
+    if (process.platform === "darwin") app.dock?.hide();
     protocol.handle("grillo", serveFile);
-    createWindow();
+    getPopover();
+    createTray({ onFilesDropped: sendDroppedFile, onQuit: () => app.quit() });
     void runtime.refresh();
-    app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    });
+    sync.syncAll();
+    setInterval(() => sync.syncAll(), SYNC_EVERY_MS);
+    broadcast();
   });
 }
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});
+// Chiudere il pannello non chiude l'app: resta nella barra dei menu.
+app.on("window-all-closed", () => undefined);
 
 app.on("before-quit", () => queue.dispose());
 
@@ -142,19 +151,45 @@ app.on("before-quit", () => queue.dispose());
 
 ipcMain.handle("app:snapshot", () => snapshot());
 
+ipcMain.handle("app:hide", () => hidePopover());
+
+ipcMain.handle("app:quit", () => app.quit());
+
 ipcMain.handle("runtime:install", () => runtime.install());
 
-ipcMain.handle("dialog:pick-book", async () => {
-  const window = BrowserWindow.getFocusedWindow() ?? mainWindow ?? undefined;
-  const options = {
-    properties: ["openFile" as const],
-    filters: [{ name: "Libri e articoli", extensions: ["pdf", "epub", "txt", "md", "json"] }]
-  };
-  const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options);
-  return result.canceled ? null : result.filePaths[0];
-});
+ipcMain.handle("dialog:pick-book", () =>
+  withPopoverPinned(async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ["openFile"],
+      filters: [{ name: "Libri e articoli", extensions: ["pdf", "epub", "txt", "md", "json"] }]
+    });
+    return result.canceled ? null : result.filePaths[0];
+  })
+);
 
-ipcMain.handle("book:import", (_event, request: ImportRequest) => queue.importBook(request));
+ipcMain.handle("dialog:confirm", (_event, message: string, detail?: string) =>
+  withPopoverPinned(async () => {
+    const result = await dialog.showMessageBox({
+      type: "warning",
+      buttons: ["Elimina", "Annulla"],
+      defaultId: 1,
+      cancelId: 1,
+      message,
+      detail
+    });
+    return result.response === 0;
+  })
+);
+
+ipcMain.handle("book:import", async (_event, request: ImportRequest) => {
+  const bookId = await queue.importBook(request);
+  if (request.convertAll) {
+    const book = readBook(bookId);
+    const pending = (book?.chapters ?? []).filter((chapter) => chapter.status !== "ready").map((chapter) => chapter.index);
+    queue.enqueue(bookId, pending);
+  }
+  return bookId;
+});
 
 ipcMain.handle("book:convert", (_event, bookId: string, chapters: number[]) => queue.enqueue(bookId, chapters));
 
@@ -162,8 +197,25 @@ ipcMain.handle("queue:cancel", () => queue.cancelAll());
 
 ipcMain.handle("book:reveal", (_event, bookId: string) => shell.openPath(bookDir(bookId)));
 
-ipcMain.handle("book:delete", (_event, bookId: string) => {
+ipcMain.handle("library:reveal", () => shell.openPath(libraryDir()));
+
+ipcMain.handle("book:delete", async (_event, bookId: string) => {
   queue.dequeueBook(bookId);
   deleteBook(bookId);
   broadcast();
+  await sync.deleteBook(bookId).catch(() => undefined);
 });
+
+ipcMain.handle("turso:save", (_event, next: TursoSettings) => {
+  const clean = { url: next.url.trim(), writeToken: next.writeToken.trim(), readToken: next.readToken.trim() };
+  const changedTarget = clean.url !== turso.url || clean.writeToken !== turso.writeToken;
+  turso = clean;
+  const stored = readJson<Record<string, unknown>>(settingsFile(), {});
+  writeJson(settingsFile(), { ...stored, turso });
+  if (changedTarget) sync.reset();
+  broadcast();
+});
+
+ipcMain.handle("turso:test", () => sync.testConnection());
+
+ipcMain.handle("turso:sync", () => sync.syncAll());

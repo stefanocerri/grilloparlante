@@ -24,6 +24,8 @@ body,
 
 body {
   margin: 0;
+  font-size: 13px;
+  overflow: hidden;
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-body);
@@ -34,14 +36,6 @@ body {
 input,
 textarea {
   user-select: text;
-}
-
-.drag {
-  -webkit-app-region: drag;
-}
-
-.no-drag {
-  -webkit-app-region: no-drag;
 }
 
 .btn {
@@ -58,6 +52,14 @@ textarea {
 
 .btn-ghost {
   @apply btn border border-line bg-transparent hover:bg-black/5;
+}
+
+.card {
+  @apply rounded-xl border border-line bg-white/70;
+}
+
+.icon-btn {
+  @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink transition hover:bg-black/5 disabled:opacity-30;
 }
 
 .eyebrow {

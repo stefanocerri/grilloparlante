@@ -1,8 +1,9 @@
 # Architettura
 
 ```
-PDF/EPUB/TXT/JSON ──► [app Mac: Electron] ──► backend Python (OmniVoice) ──► ~/Documents/Grillo Parlante/books/<id>/
-                                                                               book.json · cover · text/ · chapters/*.mp3
+PDF/EPUB/TXT/JSON ──► [app Mac: barra dei menu] ──► backend Python (OmniVoice) ──► ~/Documents/Grillo Parlante/books/<id>/
+                              │                                                       book.json · cover · text/ · chapters/*.mp3
+                              └── capitolo pronto ──► Turso (books, chapter_audio) ──► PWA di ascolto (progetto separato)
 ```
 
 ## Processi
@@ -11,8 +12,14 @@ PDF/EPUB/TXT/JSON ──► [app Mac: Electron] ──► backend Python (OmniVo
   - `runtime.ts`: trova o installa il Python con OmniVoice (`backend/runtime/install_managed_runtime.py`).
   - `queue.ts`: un processo `python -m app.cli` alla volta; legge eventi JSON da stdout.
   - `library.ts`: legge i `book.json` della libreria; protocollo `grillo://` per audio e copertine (con Range).
-  - `main.ts`: IPC e invio di uno "snapshot" completo dello stato all'interfaccia a ogni cambiamento.
+  - `tray.ts`: icona nella barra dei menu (percentuale durante la conversione, file trascinati, menu "Esci").
+  - `popover.ts`: pannello 380×600 sotto l'icona, si chiude quando perde il focus (non durante i dialoghi).
+  - `sync.ts`: carica su Turso i capitoli pronti, poi la scheda del libro; toglie da Turso le notizie scadute.
+    Registro in `userData/turso-sync.json`. Ricontrolla tutto all'avvio e ogni ora.
+  - `main.ts`: IPC e invio di uno "snapshot" completo dello stato al pannello a ogni cambiamento.
+    Niente Dock: `app.dock.hide()` e `LSUIElement` nel `package.json`.
 - **Interfaccia** (`frontend/`): React, si limita a mostrare lo snapshot e chiamare le azioni IPC.
+  Libreria divisa per tipo (Libri, Articoli, Notizie, Documenti), nuovo import, scheda, impostazioni.
 - **Backend** (`backend/app/`)
   - `import`: estrae il testo e trova i capitoli:
     - PDF: segnalibri (agganciati al titolo dentro la pagina), senza intestazioni, piè di pagina e numeri di pagina;
@@ -24,8 +31,20 @@ PDF/EPUB/TXT/JSON ──► [app Mac: Electron] ──► backend Python (OmniVo
     (ripresa automatica) → MP3 48 kbps in `chapters/NNN.mp3`. Il titolo del capitolo viene annunciato
     solo per libri e documentazione (`readTitles`), non per articoli e notizie.
 
-## Contratto con l'app di ascolto
+## Turso
 
-L'app per il telefono (progetto separato) leggerà `book.json` e i file in `chapters/`. Campi utili:
+```sql
+books(id TEXT PRIMARY KEY, json TEXT, cover BLOB, cover_mime TEXT, updated_at TEXT)
+chapter_audio(book_id TEXT, idx INTEGER, part INTEGER, data BLOB)  -- pezzi da 512 KB
+```
+
+Il client (`shared/turso.ts`) parla direttamente con l'API HTTP di Turso (`/v2/pipeline`), senza dipendenze,
+così lo stesso file può essere copiato nelle PWA (con il token di sola lettura). Nella scheda caricata un
+capitolo risulta `ready` solo quando tutti i suoi pezzi audio sono già su Turso.
+
+## Contratto con le app di ascolto
+
+Le PWA (progetto separato) leggono da Turso la colonna `books.json`, cioè il `book.json`. Campi utili:
 `kind`, `title`, `author`, `cover`, `publishedAt`, `expiresAt` e, per ogni capitolo, `title`, `status`,
-`file`, `duration` e `meta` (sezione, fonte, link, data). I tipi sono in `shared/contracts.ts`.
+`duration`, `size`, `parts` e `meta` (sezione, fonte, link, data). I tipi sono in `shared/contracts.ts`.
+Per tipo: `SELECT json FROM books WHERE json_extract(json, '$.kind') = 'notiziario'`.

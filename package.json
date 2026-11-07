@@ -24,6 +24,7 @@
     "files": [
       "dist/**",
       "dist-electron/**",
+      "assets/**",
       "package.json"
     ],
     "extraResources": [
@@ -42,7 +43,10 @@
         "zip",
         "dmg"
       ],
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "extendInfo": {
+        "LSUIElement": true
+      }
     }
   },
   "dependencies": {

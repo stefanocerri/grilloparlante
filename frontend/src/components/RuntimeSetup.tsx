@@ -5,16 +5,16 @@ export function RuntimeSetup({ runtime }: { runtime: RuntimeStatus }) {
   const checking = runtime.state === "checking";
 
   return (
-    <div className="flex h-full items-center justify-center p-10">
-      <div className="w-full max-w-lg rounded-3xl border border-line bg-panel p-8">
+    <div className="p-3">
+      <div className="card p-4">
         <p className="eyebrow">Primo avvio</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Installiamo la voce</h1>
-        <p className="mt-3 text-sm leading-relaxed text-mute">
+        <h1 className="mt-1 text-lg font-semibold">Installiamo la voce</h1>
+        <p className="mt-2 text-xs leading-relaxed text-mute">
           Grillo parlante usa OmniVoice, un modello vocale che gira interamente sul tuo Mac. Va scaricato una
           sola volta (circa 5 GB tra PyTorch e il modello). Poi funziona anche senza internet.
         </p>
 
-        <div className="mt-6 rounded-2xl bg-white p-4">
+        <div className="mt-4 rounded-xl bg-paper p-3">
           <p className="text-sm font-medium">{runtime.message}</p>
           {runtime.detail && <p className="mt-1 whitespace-pre-wrap text-xs text-mute">{runtime.detail}</p>}
           {runtime.installHint && (
@@ -33,7 +33,7 @@ export function RuntimeSetup({ runtime }: { runtime: RuntimeStatus }) {
         </div>
 
         <button
-          className="btn-primary mt-6 w-full py-3"
+          className="btn-primary mt-4 w-full py-2.5"
           disabled={!runtime.canInstall || installing || checking}
           onClick={() => void window.grillo.installRuntime()}
         >

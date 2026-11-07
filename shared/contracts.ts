@@ -50,9 +50,12 @@ export interface Book {
   chapters: ChapterEntry[];
 }
 
+export type SyncState = "off" | "idle" | "uploading" | "error";
+
 export interface BookView extends Book {
   coverUrl?: string;
   chapterUrls: Record<number, string>;
+  uploadedChapters: number[];
   queuedChapters: number[];
 }
 
@@ -90,11 +93,26 @@ export interface RuntimeStatus {
   installHint?: string;
 }
 
+export interface TursoSettings {
+  url: string;
+  /** Resta sul Mac: serve per caricare. */
+  writeToken: string;
+  /** Da dare alle PWA: possono solo leggere. Salvato qui solo per averlo a portata di mano. */
+  readToken: string;
+}
+
+export interface SyncStatus {
+  state: SyncState;
+  message: string;
+}
+
 export interface AppSnapshot {
   runtime: RuntimeStatus;
   voices: VoiceInfo[];
   books: BookView[];
   queue: QueueState;
+  turso: TursoSettings;
+  sync: SyncStatus;
   libraryDir: string;
 }
 
@@ -102,4 +120,6 @@ export interface ImportRequest {
   filePath: string;
   voiceId: string;
   speed: number;
+  /** Dopo l'importazione mette subito in coda tutti i capitoli. */
+  convertAll?: boolean;
 }

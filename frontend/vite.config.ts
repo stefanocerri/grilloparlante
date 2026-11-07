@@ -4,6 +4,8 @@ import react from "@vitejs/plugin-react-swc";
 
 export default defineConfig({
   root: path.resolve(__dirname),
+  // Percorsi relativi: l'app impacchettata carica index.html da disco (file://).
+  base: "./",
   plugins: [react()],
   resolve: {
     alias: {

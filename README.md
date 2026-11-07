@@ -2,6 +2,9 @@
 
 Da libri e articoli ad audio con voce italiana, capitolo per capitolo, tutto in locale sul Mac.
 
+È un'app della **barra dei menu** (niente icona nel Dock): clic sull'icona per aprire il pannello, trascina un
+file sull'icona per importarlo, tasto destro per uscire. Mentre converte, accanto all'icona compare la percentuale.
+
 1. **Importa** un PDF, un EPUB, un testo (TXT/MD) o un articolo/notiziario in JSON: l'app estrae il testo e
    divide i capitoli (segnalibri del PDF, indice dell'EPUB, oppure un capitolo per articolo).
 2. **Scegli la voce** tra quattro voci italiane: Marco, Paolo, Giulia e Anna.
@@ -12,7 +15,8 @@ Tutto gira sul Mac e senza costi: la sintesi usa [OmniVoice](https://huggingface
 sulla GPU del Mac quando c'è. I pesi di OmniVoice hanno licenza CC-BY-NC, quindi il progetto è solo per uso
 personale e non commerciale.
 
-L'app per ascoltare sul telefono sarà un progetto separato: leggerà i `book.json` e gli MP3 prodotti qui.
+4. **Turso**: ogni capitolo pronto viene caricato sul tuo database Turso, da cui le PWA di ascolto (progetto
+   separato) leggono. Le notizie con `expiresAt` passato vengono tolte da Turso; sul Mac restano.
 
 ## Avvio in sviluppo
 
@@ -46,6 +50,20 @@ chapters/001.mp3   audio dei capitoli convertiti (48 kbps, circa 21 MB per ora)
 
 `kind` distingue `libro`, `documentazione`, `articolo` e `notiziario`. Per articoli e notizie viene letto solo il
 testo; titolo, fonte, link e date restano in `book.json` (campo `meta` di ogni capitolo).
+
+## Turso
+
+Il piano gratuito di Turso ha 5 GB, cioè circa 25–30 libri da 8 ore. Configurazione una tantum:
+
+```bash
+turso db create grillo
+turso db show grillo --url
+turso db tokens create grillo
+turso db tokens create grillo --read-only
+```
+
+Nel pannello apri le **Impostazioni** (ingranaggio) e inserisci indirizzo, token di scrittura (resta sul Mac) e
+token di sola lettura (da dare alle PWA). Schema delle tabelle in `shared/turso.ts`.
 
 ## Articoli e notiziari in JSON
 
