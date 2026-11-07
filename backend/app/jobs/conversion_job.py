@@ -184,7 +184,7 @@ class ConversionJob:
       "Trying TOC, then visible headings, then smart fallback sections."
     )
 
-    chapters = detect_from_toc(document.text, document.toc)
+    chapters = detect_from_toc(document.text, document.toc, document.toc_marks)
     chapter_mode = "toc"
 
     if not chapters:

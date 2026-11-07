@@ -9,6 +9,8 @@ class ExtractedDocument:
   file_type: str
   text: str
   toc: list[str] = field(default_factory=list)
+  # Exact chapter start offsets in `text` (offset, title), when the source provides them.
+  toc_marks: list[tuple[int, str]] = field(default_factory=list)
   metadata: dict[str, str] = field(default_factory=dict)
   ocr_used: bool = False
   warnings: list[str] = field(default_factory=list)
