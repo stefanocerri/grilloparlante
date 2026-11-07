@@ -1,0 +1,7 @@
+{
+  "installCommand": "ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci",
+  "buildCommand": "npm run build:pwa",
+  "outputDirectory": "dist-pwa",
+  "rewrites": [{ "source": "/((?!assets/|icons/|sw.js|manifest.webmanifest).*)", "destination": "/index.html" }],
+  "headers": [{ "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }]
+}

@@ -2,6 +2,7 @@ import { app, dialog, ipcMain, protocol, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
+import QRCode from "qrcode";
 import type { AppSnapshot, ImportRequest, TursoSettings, VoiceInfo } from "../shared/contracts";
 import { bookDir, deleteBook, listBooks, readBook, toView } from "./library";
 import { backendRoot, libraryDir, readJson, userDataFile, writeJson } from "./paths";
@@ -18,10 +19,16 @@ protocol.registerSchemesAsPrivileged([
 const SUPPORTED = new Set([".pdf", ".epub", ".txt", ".md", ".json"]);
 const SYNC_EVERY_MS = 60 * 60 * 1000;
 const settingsFile = () => userDataFile("settings.json");
+const DEFAULT_PWA_URL = "https://grilloparlante.vercel.app";
 
 function loadTurso(): TursoSettings {
   const stored = readJson<{ turso?: Partial<TursoSettings> }>(settingsFile(), {}).turso ?? {};
-  return { url: stored.url ?? "", writeToken: stored.writeToken ?? "", readToken: stored.readToken ?? "" };
+  return {
+    url: stored.url ?? "",
+    writeToken: stored.writeToken ?? "",
+    readToken: stored.readToken ?? "",
+    pwaUrl: stored.pwaUrl || DEFAULT_PWA_URL
+  };
 }
 
 let turso = loadTurso();
@@ -207,7 +214,12 @@ ipcMain.handle("book:delete", async (_event, bookId: string) => {
 });
 
 ipcMain.handle("turso:save", (_event, next: TursoSettings) => {
-  const clean = { url: next.url.trim(), writeToken: next.writeToken.trim(), readToken: next.readToken.trim() };
+  const clean = {
+    url: next.url.trim(),
+    writeToken: next.writeToken.trim(),
+    readToken: next.readToken.trim(),
+    pwaUrl: next.pwaUrl?.trim() || DEFAULT_PWA_URL
+  };
   const changedTarget = clean.url !== turso.url || clean.writeToken !== turso.writeToken;
   turso = clean;
   const stored = readJson<Record<string, unknown>>(settingsFile(), {});
@@ -219,3 +231,11 @@ ipcMain.handle("turso:save", (_event, next: TursoSettings) => {
 ipcMain.handle("turso:test", () => sync.testConnection());
 
 ipcMain.handle("turso:sync", () => sync.syncAll());
+
+/** QR per collegare la PWA: indirizzo e chiave di sola lettura viaggiano nel frammento #, mai al server. */
+ipcMain.handle("turso:qr", async () => {
+  if (!turso.url || !turso.readToken) return null;
+  const params = new URLSearchParams({ db: turso.url, token: turso.readToken });
+  const link = `${turso.pwaUrl.replace(/\/+$/, "")}/#setup?${params.toString()}`;
+  return { link, image: await QRCode.toDataURL(link, { margin: 1, width: 280 }) };
+});

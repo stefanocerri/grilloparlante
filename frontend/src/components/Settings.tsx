@@ -6,6 +6,11 @@ export function Settings({ snapshot }: { snapshot: AppSnapshot }) {
   const [form, setForm] = useState<TursoSettings>(snapshot.turso);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [qr, setQr] = useState<{ link: string; image: string } | null>(null);
+
+  useEffect(() => {
+    void window.grillo.tursoQr().then(setQr);
+  }, [snapshot.turso]);
   const dirty = JSON.stringify(form) !== JSON.stringify(snapshot.turso);
 
   useEffect(() => setForm(snapshot.turso), [snapshot.turso]);
@@ -59,6 +64,7 @@ export function Settings({ snapshot }: { snapshot: AppSnapshot }) {
         {field("url", "Indirizzo del database", "libsql://grillo-tuonome.turso.io")}
         {field("writeToken", "Token di scrittura (resta su questo Mac)", "turso db tokens create grillo", true)}
         {field("readToken", "Token di sola lettura (per le PWA)", "turso db tokens create grillo --read-only", true)}
+        {field("pwaUrl", "Indirizzo della PWA per il telefono", "https://grilloparlante.vercel.app")}
         <div className="flex gap-1.5">
           <button className="btn-primary flex-1" disabled={busy || !form.url || !form.writeToken} onClick={saveAndTest}>
             {dirty ? "Salva e prova" : "Prova la connessione"}
@@ -77,6 +83,23 @@ export function Settings({ snapshot }: { snapshot: AppSnapshot }) {
           <span className={`h-2 w-2 shrink-0 rounded-full ${syncColor}`} />
           {snapshot.sync.message}
         </p>
+      </section>
+
+      <section className="card flex flex-col items-center gap-2 p-3 text-center">
+        <p className="self-start text-sm font-semibold">Telefono</p>
+        {qr ? (
+          <>
+            <img src={qr.image} className="h-36 w-36" alt="QR per collegare il telefono" />
+            <p className="text-[11px] leading-relaxed text-mute">
+              Inquadralo con il telefono: apre la PWA già collegata. Su iPhone poi Condividi → "Aggiungi alla schermata
+              Home".
+            </p>
+          </>
+        ) : (
+          <p className="self-start text-[11px] text-mute">
+            Inserisci indirizzo e token di sola lettura per avere il QR che collega il telefono.
+          </p>
+        )}
       </section>
 
       <section className="card flex flex-col gap-1 p-3">

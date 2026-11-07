@@ -99,6 +99,8 @@ export interface TursoSettings {
   writeToken: string;
   /** Da dare alle PWA: possono solo leggere. Salvato qui solo per averlo a portata di mano. */
   readToken: string;
+  /** Indirizzo della PWA di ascolto (es. su Vercel): serve per il QR del telefono. */
+  pwaUrl: string;
 }
 
 export interface SyncStatus {

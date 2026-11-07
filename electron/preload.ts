@@ -28,7 +28,8 @@ const api = {
   deleteBook: (bookId: string) => ipcRenderer.invoke("book:delete", bookId) as Promise<void>,
   saveTurso: (settings: TursoSettings) => ipcRenderer.invoke("turso:save", settings) as Promise<void>,
   testTurso: () => ipcRenderer.invoke("turso:test") as Promise<string>,
-  syncTurso: () => ipcRenderer.invoke("turso:sync") as Promise<void>
+  syncTurso: () => ipcRenderer.invoke("turso:sync") as Promise<void>,
+  tursoQr: () => ipcRenderer.invoke("turso:qr") as Promise<{ link: string; image: string } | null>
 };
 
 export type GrilloApi = typeof api;

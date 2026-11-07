@@ -10,8 +10,9 @@ file sull'icona per importarlo, tasto destro per uscire. Mentre converte, accant
 2. **Scegli la voce** tra quattro voci italiane: Marco, Paolo, Giulia e Anna.
 3. **Converti** quando vuoi: un capitolo, "fino al capitolo N" o tutto. Se chiudi l'app, la conversione
    riparte da dove era rimasta.
-4. **Turso**: ogni capitolo pronto viene caricato sul tuo database Turso, da cui le PWA di ascolto (progetto
-   separato) leggono. Le notizie con `expiresAt` passato vengono tolte da Turso; sul Mac restano.
+4. **Turso**: ogni capitolo pronto viene caricato sul tuo database Turso. La PWA di ascolto inclusa in `pwa/`
+   (e qualunque altra PWA che usa lo stesso schema) legge da lì. Le notizie con `expiresAt` passato vengono
+   tolte da Turso; sul Mac restano.
 
 Tutto gira sul Mac e senza costi: la sintesi usa [OmniVoice](https://huggingface.co/k2-fsa/OmniVoice) in locale,
 sulla GPU del Mac quando c'è. I pesi di OmniVoice hanno licenza CC-BY-NC, quindi il progetto è solo per uso
@@ -62,7 +63,26 @@ turso db tokens create grillo --read-only
 ```
 
 Nel pannello apri le **Impostazioni** (ingranaggio) e inserisci indirizzo, token di scrittura (resta sul Mac) e
-token di sola lettura (da dare alle PWA). Schema delle tabelle in `shared/turso.ts`.
+token di sola lettura (da dare alle PWA). Schema delle tabelle in `shared/turso.ts`. Con l'indirizzo della
+PWA compilato, nelle Impostazioni compare il **QR** che collega il telefono.
+
+## App per il telefono (PWA)
+
+`pwa/` contiene un'app di ascolto in stile Audible:
+- **Libreria**: copertine, card "Continua ad ascoltare", etichette per articoli e notiziari; le notizie scadute
+  non compaiono.
+- **Scheda**: elenco dei capitoli, con fonte e sezione per gli articoli, e download per l'ascolto offline.
+- **Player**: riprende da dove eri rimasto e offre velocità da 0,8× a 2×, salti di ±30 secondi, parte
+  precedente e successiva, timer di spegnimento e comandi nella schermata di blocco.
+
+Legge direttamente da Turso con il token di sola lettura. Per pubblicarla gratis su Vercel basta importare il
+repository: la configurazione è già in `vercel.json`. Poi incolla l'indirizzo nelle Impostazioni dell'app Mac.
+
+Per lo sviluppo, con un database di prova che imita Turso su `http://127.0.0.1:8099`:
+
+```bash
+GRILLO_TURSO_PROXY=http://127.0.0.1:8099 npm run dev:pwa
+```
 
 ## Articoli e notiziari in JSON
 
