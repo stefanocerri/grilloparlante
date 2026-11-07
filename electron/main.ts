@@ -148,7 +148,7 @@ ipcMain.handle("dialog:pick-book", async () => {
   const window = BrowserWindow.getFocusedWindow() ?? mainWindow ?? undefined;
   const options = {
     properties: ["openFile" as const],
-    filters: [{ name: "Libri", extensions: ["pdf", "epub", "txt"] }]
+    filters: [{ name: "Libri e articoli", extensions: ["pdf", "epub", "txt", "md", "json"] }]
   };
   const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options);
   return result.canceled ? null : result.filePaths[0];

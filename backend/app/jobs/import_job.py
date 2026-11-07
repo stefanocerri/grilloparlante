@@ -1,4 +1,4 @@
-"""Passo 1: PDF/EPUB -> scheda del libro con i capitoli (nessun audio ancora).
+"""Passo 1: PDF/EPUB/TXT/JSON -> scheda del libro con i capitoli (nessun audio ancora).
 
 Veloce: estrae il testo, trova i capitoli e salva in books/<id>/:
   book.json        capitoli con stato "pending" e durata stimata
@@ -12,6 +12,7 @@ from pathlib import Path
 from app.chaptering.heading_detector import detect_from_headings, fallback_sections
 from app.chaptering.toc_detector import detect_from_toc
 from app.extractors.epub_extractor import extract_epub
+from app.extractors.json_extractor import JsonInputError, extract_json
 from app.extractors.pdf_extractor import extract_pdf
 from app.extractors.text_extractor import extract_text_file
 from app.file_detector import detect_file_type
@@ -61,6 +62,11 @@ class ImportJob:
       document = extract_epub(str(self.input_path))
     elif file_type == "txt":
       document = extract_text_file(str(self.input_path))
+    elif file_type == "json":
+      try:
+        document = extract_json(str(self.input_path))
+      except JsonInputError as error:
+        raise RuntimeError(f"File JSON non valido: {error}") from error
     else:
       raise RuntimeError(f"Formato non supportato: {self.input_path.suffix}")
 
@@ -76,7 +82,11 @@ class ImportJob:
         Chapter(id=f"chapter-{i:03d}", title=title, text=text, source="outline")
         for i, (title, text) in enumerate(document.sections, start=1)
       ]
-      mode = "segnalibri del PDF"
+      mode = {
+        "pdf": "segnalibri del PDF",
+        "epub": "indice dell'EPUB",
+        "json": "articoli del file JSON",
+      }.get(document.file_type, "capitoli della sorgente")
     else:
       chapters = detect_from_toc(document.text, document.toc)
       mode = "indice"
@@ -87,8 +97,10 @@ class ImportJob:
         chapters = fallback_sections(document.text, target_chars=FALLBACK_CHAPTER_CHARS)
         mode = "parti di lunghezza simile (nessun capitolo trovato)"
 
-    for chapter in chapters:
+    for position, chapter in enumerate(chapters):
       chapter.text = clean_for_speech(chapter.text)
+      if position < len(document.section_meta):
+        chapter.meta = document.section_meta[position]
     chapters = [chapter for chapter in chapters if chapter.text]
     self.emitter.log("info", f"{len(chapters)} capitoli trovati usando {mode}")
     return chapters
@@ -108,6 +120,9 @@ class ImportJob:
       "id": book_id,
       "title": document.title,
       "author": document.author,
+      "kind": document.kind,
+      "readTitles": document.read_titles,
+      **{key: document.metadata[key] for key in ("publishedAt", "expiresAt", "source", "url") if document.metadata.get(key)},
       "voice": {"id": self.voice.id, "name": self.voice.name},
       "speed": self.speed,
       "sourceFile": self.input_path.name,
@@ -122,6 +137,7 @@ class ImportJob:
           "duration": None,
           "chars": len(chapter.text),
           "estimatedMinutes": estimate_minutes(len(chapter.text), self.speed),
+          **({"meta": chapter.meta} if chapter.meta else {}),
         }
         for index, chapter in enumerate(chapters, start=1)
       ],

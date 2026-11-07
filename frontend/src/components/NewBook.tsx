@@ -78,7 +78,7 @@ export function NewBook({ snapshot, onImported }: { snapshot: AppSnapshot; onImp
       >
         <FileText size={28} className="shrink-0 text-mute" />
         <div>
-          <p className="font-medium">{fileName ?? "Trascina qui un PDF o EPUB"}</p>
+          <p className="font-medium">{fileName ?? "Trascina qui un PDF, EPUB o articolo JSON"}</p>
           <p className="text-sm text-mute">{fileName ? "Clicca per sceglierne un altro" : "oppure clicca per sceglierlo"}</p>
         </div>
       </button>

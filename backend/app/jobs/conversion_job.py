@@ -6,6 +6,7 @@ capitolo non e finito: se l'app si chiude a meta, la conversione riparte da li.
 
 from __future__ import annotations
 
+import re
 import time
 from pathlib import Path
 from typing import Callable
@@ -108,8 +109,12 @@ class ConversionJob:
   def _synthesize(self, engine, chapter, entry, label, done_chars, total_chars, session) -> np.ndarray:
     import soundfile as sf
 
+    announce = self.book.get("readTitles", True) and _should_announce(chapter.title)
+    if announce:
+      # Il titolo viene annunciato a parte (con una pausa): toglilo dall'inizio del testo
+      # se c'e gia, altrimenti verrebbe letto due volte.
+      chapter.text = _strip_leading_title(chapter.text, chapter.title) or chapter.text
     parts = [chunk.text for chunk in chunk_chapters([chapter], CHUNK_CHARS)]
-    announce = _should_announce(chapter.title)
     if announce:
       parts.insert(0, chapter.title.rstrip(".") + ".")
 
@@ -161,3 +166,12 @@ class ConversionJob:
 def _should_announce(title: str) -> bool:
   """Legge il titolo del capitolo solo se e un titolo vero, non 'Parte 3' generata da noi."""
   return bool(title.strip()) and not slugify(title).startswith("parte-") and len(title) <= 120
+
+
+def _strip_leading_title(text: str, title: str) -> str:
+  words = re.findall(r"\w+", title.lower())
+  if not words:
+    return text
+  pattern = re.compile(r"^\W*" + r"\W+".join(re.escape(word) for word in words) + r"[\s.:;,!?\-\u2013\u2014]*", re.IGNORECASE)
+  match = pattern.match(text)
+  return text[match.end():].lstrip() if match else text

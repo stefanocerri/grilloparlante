@@ -17,7 +17,7 @@ export function Sidebar({
       <div className="drag h-14 shrink-0" />
       <div className="px-5 pb-4">
         <p className="text-xl font-semibold tracking-tight">Grillo parlante</p>
-        <p className="text-xs text-mute">Da PDF ad audiolibro</p>
+        <p className="text-xs text-mute">Da libri e articoli ad audio</p>
       </div>
 
       <div className="px-4">

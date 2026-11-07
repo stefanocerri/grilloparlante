@@ -40,7 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
   parser = argparse.ArgumentParser(description="Grillo parlante: PDF -> audiolibro.")
   sub = parser.add_subparsers(dest="command", required=True)
 
-  importer = sub.add_parser("import", help="Estrae testo e capitoli da un PDF/EPUB.")
+  importer = sub.add_parser("import", help="Estrae testo e capitoli da PDF, EPUB, TXT o JSON.")
   importer.add_argument("--input", required=True)
   importer.add_argument("--voice", required=True)
   importer.add_argument("--speed", type=float, default=1.0)

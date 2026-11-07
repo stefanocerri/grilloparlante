@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
+from app.chaptering.toc_detector import sections_from_marks
 from app.jobs.models import ExtractedDocument
 from app.utils.files import compact_whitespace
 
@@ -63,22 +65,92 @@ def _outline_entries(reader: Any) -> list[tuple[str, int]]:
   return entries
 
 
-def _sections_from_outline(pages: list[str], entries: list[tuple[str, int]]) -> list[tuple[str, str]]:
-  sections: list[tuple[str, str]] = []
-  for index, (title, start) in enumerate(entries):
-    end = entries[index + 1][1] if index + 1 < len(entries) else len(pages)
-    text = "\n\n".join(page for page in pages[start:max(end, start + 1)] if page).strip()
-    if len(text) >= 200:
-      sections.append((title, text))
-  return sections if len(sections) >= 2 else []
+PAGE_NUMBER_LINE = re.compile(r"^\s*(?:pag(?:ina|e)?\.?\s*)?[-\u2013\u2014]?\s*[0-9ivxlcdm]{1,6}\s*[-\u2013\u2014]?\s*(?:(?:/|di|of)\s*\d+)?\s*$", re.IGNORECASE)
+EDGE_LINES = 2
+
+
+def _edge_key(line: str) -> str:
+  return re.sub(r"\d+", "#", re.sub(r"\s+", " ", line.strip().lower()))
+
+
+def _strip_headers_footers(pages: list[list[str]]) -> list[list[str]]:
+  """Drop running headers/footers and page numbers repeated across pages."""
+  usable = [page for page in pages if page]
+  repeated: set[str] = set()
+
+  if len(usable) >= 4:
+    counts: dict[str, int] = {}
+    for page in usable:
+      edges = {_edge_key(line) for line in page[:EDGE_LINES] + page[-EDGE_LINES:] if line.strip()}
+      for key in edges:
+        counts[key] = counts.get(key, 0) + 1
+    threshold = max(3, int(len(usable) * 0.4))
+    repeated = {key for key, count in counts.items() if count >= threshold and len(key) <= 120}
+
+  cleaned_pages: list[list[str]] = []
+  for page in pages:
+    lines = list(page)
+    for _ in range(EDGE_LINES + 1):
+      if lines and (_edge_key(lines[0]) in repeated or PAGE_NUMBER_LINE.match(lines[0])):
+        lines.pop(0)
+      if lines and (_edge_key(lines[-1]) in repeated or PAGE_NUMBER_LINE.match(lines[-1])):
+        lines.pop()
+    cleaned_pages.append(lines)
+
+  return cleaned_pages
+
+
+def _page_text(lines: list[str]) -> str:
+  text = "\n".join(line.rstrip() for line in lines)
+  # Re-join words hyphenated across a line break ("raga-\nzzi" -> "ragazzi").
+  text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)
+  return compact_whitespace(text)
 
 
 def extract_pdf(file_path: str) -> ExtractedDocument:
   from pypdf import PdfReader
 
   reader = PdfReader(file_path)
-  pages = [compact_whitespace(page.extract_text() or "") for page in reader.pages]
-  text = "\n\n".join(page for page in pages if page).strip()
+  raw_pages: list[list[str]] = []
+  for page in reader.pages:
+    try:
+      raw = page.extract_text() or ""
+    except Exception:
+      raw = ""
+    raw_pages.append([line for line in raw.splitlines() if line.strip()])
+
+  pages = [_page_text(lines) for lines in _strip_headers_footers(raw_pages)]
+
+  # Testo completo, ricordando dove inizia ogni pagina.
+  page_offsets: list[int] = []
+  parts: list[str] = []
+  length = 0
+  for page_text in pages:
+    if parts and page_text:
+      parts.append("\n\n")
+      length += 2
+    page_offsets.append(length)
+    if page_text:
+      parts.append(page_text)
+      length += len(page_text)
+  text = "".join(parts)
+
+  # Segnalibri -> inizio capitolo; dentro la pagina si aggancia al titolo se e visibile,
+  # cosi un capitolo che inizia a meta pagina non si porta dietro la fine del precedente.
+  toc_marks: list[tuple[int, str]] = []
+  lowered = text.lower()
+  for title, page_index in _outline_entries(reader):
+    if page_index >= len(page_offsets):
+      continue
+    offset = page_offsets[page_index]
+    page_end = page_offsets[page_index + 1] if page_index + 1 < len(page_offsets) else len(text)
+    words = title.lower().split()
+    if words:
+      match = re.compile(r"\s+".join(re.escape(word) for word in words)).search(lowered, offset, page_end)
+      if match:
+        offset = match.start()
+    toc_marks.append((offset, title))
+
   meta = reader.metadata
   title = (getattr(meta, "title", "") or "").strip() if meta else ""
   author = (getattr(meta, "author", "") or "").strip() if meta else ""
@@ -96,8 +168,10 @@ def extract_pdf(file_path: str) -> ExtractedDocument:
     author=author,
     file_type="pdf",
     text=text,
+    toc=[title for _, title in toc_marks],
+    toc_marks=toc_marks,
     warnings=warnings,
     cover_bytes=cover_bytes,
     cover_extension=cover_extension,
-    sections=_sections_from_outline(pages, _outline_entries(reader)),
+    sections=sections_from_marks(text, toc_marks),
   )

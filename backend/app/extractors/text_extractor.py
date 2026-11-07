@@ -12,5 +12,6 @@ def extract_text_file(file_path: str) -> ExtractedDocument:
   return ExtractedDocument(
     title=source.stem.replace("_", " ").replace("-", " ").strip() or "Untitled text",
     file_type="txt",
+    kind="documentazione",
     text=text
   )

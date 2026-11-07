@@ -19,13 +19,25 @@ export interface ChapterEntry {
   chars: number;
   estimatedMinutes: number;
   size?: number;
+  /** Solo per articoli/notizie da JSON: fonte, link, sezione, data. */
+  meta?: { section?: string; source?: string; url?: string; author?: string; publishedAt?: string };
 }
+
+export type ContentKind = "libro" | "documentazione" | "articolo" | "notiziario";
 
 /** Contenuto di books/<id>/book.json scritto dal backend Python. */
 export interface Book {
   id: string;
   title: string;
   author: string;
+  /** Assente nei libri importati prima di questo campo: vale "libro". */
+  kind?: ContentKind;
+  /** false per articoli/notizie: il titolo del capitolo non viene letto. */
+  readTitles?: boolean;
+  publishedAt?: string;
+  expiresAt?: string;
+  source?: string;
+  url?: string;
   voice: { id: string; name: string };
   speed: number;
   sourceFile: string;
