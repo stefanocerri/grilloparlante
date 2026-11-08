@@ -12,10 +12,8 @@
     "build": "npm run build:renderer && npm run build:main && electron-builder",
     "build:renderer": "vite build --config frontend/vite.config.ts",
     "build:main": "tsc -p electron/tsconfig.json",
-    "lint": "tsc --noEmit -p frontend/tsconfig.json && tsc --noEmit -p electron/tsconfig.json && tsc --noEmit -p pwa/tsconfig.json",
-    "preview": "vite preview --config frontend/vite.config.ts",
-    "dev:pwa": "vite --config pwa/vite.config.ts",
-    "build:pwa": "tsc --noEmit -p pwa/tsconfig.json && vite build --config pwa/vite.config.ts"
+    "lint": "tsc --noEmit -p frontend/tsconfig.json && tsc --noEmit -p electron/tsconfig.json",
+    "preview": "vite preview --config frontend/vite.config.ts"
   },
   "build": {
     "appId": "studio.minddimension.grilloparlante",
