@@ -146,7 +146,11 @@ export interface SystemCheck {
   requiredDiskGb: number;
 }
 
+/** Aspetto dell'interfaccia: "system" segue Impostazioni di Sistema → Aspetto. */
+export type ThemeChoice = "system" | "light" | "dark";
+
 export interface AppSnapshot {
+  theme: ThemeChoice;
   /** false finché l'utente non ha completato (o saltato) la configurazione guidata. */
   onboarded: boolean;
   runtime: RuntimeStatus;

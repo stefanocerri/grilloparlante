@@ -57,7 +57,8 @@ Turso prima di questa versione non la vede.
 ## Interfaccia
 
 Stile sobrio in bianco e nero con bordi sottili, ispirato alle dashboard per sviluppatori: font
-[Geist](https://vercel.com/font) (licenza SIL OFL, dal pacchetto npm `geist`), segue il tema chiaro o scuro del Mac.
+[Geist](https://vercel.com/font) (licenza SIL OFL, dal pacchetto npm `geist`), segue il tema chiaro o scuro del Mac oppure quello scelto in Impostazioni → **Aspetto**
+(Sistema, Chiaro, Scuro; salvato in `settings.json` e applicato con `nativeTheme.themeSource`).
 I colori sono variabili CSS in `frontend/src/styles/index.css`, i componenti di base (pulsanti, card, badge, campi)
 sono classi Tailwind nello stesso file. In basso una barra di stato mostra sempre motore voce e Turso.
 

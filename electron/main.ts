@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
 import QRCode from "qrcode";
-import type { AppQr, AppSnapshot, ImportRequest, ListeningApp, TursoSettings, TursoSetupOutcome, VoiceInfo } from "../shared/contracts";
+import type { AppQr, AppSnapshot, ThemeChoice, ImportRequest, ListeningApp, TursoSettings, TursoSetupOutcome, VoiceInfo } from "../shared/contracts";
 import { bookDir, deleteBook, listBooks, readBook, toView } from "./library";
 import { backendRoot, libraryDir, readJson, userDataFile, writeJson } from "./paths";
 import { getPopover, hidePopover, popoverBackground, withPopoverPinned } from "./popover";
@@ -65,6 +65,13 @@ function saveSettings(patch: Record<string, unknown>) {
 
 let turso = loadTurso();
 let onboarded = loadOnboarded();
+
+function loadTheme(): ThemeChoice {
+  const stored = readJson<{ theme?: ThemeChoice }>(settingsFile(), {}).theme;
+  return stored === "light" || stored === "dark" ? stored : "system";
+}
+
+let theme = loadTheme();
 let broadcastTimer: NodeJS.Timeout | null = null;
 
 const runtime = new RuntimeManager(broadcast);
@@ -93,6 +100,7 @@ function voices(): VoiceInfo[] {
 
 function snapshot(): AppSnapshot {
   return {
+    theme,
     onboarded,
     runtime: runtime.status,
     voices: voices(),
@@ -179,6 +187,8 @@ if (!app.requestSingleInstanceLock()) {
     void runtime.refresh();
     sync.syncAll();
     setInterval(() => sync.syncAll(), SYNC_EVERY_MS);
+    // themeSource cambia anche prefers-color-scheme nell'interfaccia: il CSS non deve sapere altro.
+    nativeTheme.themeSource = theme;
     nativeTheme.on("updated", () => {
       const popover = getPopover();
       if (!popover.isDestroyed()) popover.setBackgroundColor(popoverBackground());
@@ -209,6 +219,13 @@ ipcMain.handle("system:check", () => checkSystem());
 ipcMain.handle("onboarding:finish", () => {
   onboarded = true;
   saveSettings({ onboarded });
+  broadcast();
+});
+
+ipcMain.handle("theme:set", (_event, next: ThemeChoice) => {
+  theme = next === "light" || next === "dark" ? next : "system";
+  nativeTheme.themeSource = theme;
+  saveSettings({ theme });
   broadcast();
 });
 

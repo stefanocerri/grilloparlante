@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import type { AppSnapshot } from "@shared/contracts";
-import { FolderOpen, Power, RefreshCw, Wand2 } from "lucide-react";
+import type { AppSnapshot, ThemeChoice } from "@shared/contracts";
+import { FolderOpen, Monitor, Moon, Power, RefreshCw, Sun, Wand2 } from "lucide-react";
 import { AppQrs, Disclosure, TursoForm, TursoSetup, tursoConfigured } from "./TursoForm";
 
 function Section({ title, description, children, action }: { title: string; description?: string; children: ReactNode; action?: ReactNode }) {
@@ -73,6 +73,10 @@ export function Settings({ snapshot }: { snapshot: AppSnapshot }) {
         <AppQrs snapshot={snapshot} />
       </Section>
 
+      <Section title="Aspetto">
+        <ThemePicker value={snapshot.theme} />
+      </Section>
+
       <Section title="Motore voce">
         <p className="text-xs text-mute">
           {snapshot.runtime.message}
@@ -98,6 +102,31 @@ export function Settings({ snapshot }: { snapshot: AppSnapshot }) {
           <Power size={14} /> Esci
         </button>
       </div>
+    </div>
+  );
+}
+
+const THEMES: { id: ThemeChoice; label: string; icon: typeof Sun }[] = [
+  { id: "system", label: "Sistema", icon: Monitor },
+  { id: "light", label: "Chiaro", icon: Sun },
+  { id: "dark", label: "Scuro", icon: Moon }
+];
+
+/** Chiaro, scuro o come Impostazioni di Sistema → Aspetto. */
+function ThemePicker({ value }: { value: ThemeChoice }) {
+  return (
+    <div className="flex gap-0.5 rounded-md border border-line bg-subtle p-0.5">
+      {THEMES.map(({ id, label, icon: Icon }) => (
+        <button
+          key={id}
+          onClick={() => void window.grillo.setTheme(id)}
+          className={`flex h-7 flex-1 items-center justify-center gap-1.5 rounded text-xs font-medium transition-colors ${
+            value === id ? "bg-bg text-ink shadow-[0_0_0_1px_rgb(var(--line))]" : "text-mute hover:text-ink"
+          }`}
+        >
+          <Icon size={13} /> {label}
+        </button>
+      ))}
     </div>
   );
 }

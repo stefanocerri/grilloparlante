@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
-import type { AppQr, AppSnapshot, ImportRequest, SystemCheck, TursoSettings, TursoSetupOutcome } from "../shared/contracts";
+import type { AppQr, AppSnapshot, ThemeChoice, ImportRequest, SystemCheck, TursoSettings, TursoSetupOutcome } from "../shared/contracts";
 
 function subscribe<T>(channel: string, listener: (payload: T) => void) {
   const wrapped = (_event: unknown, payload: T) => listener(payload);
@@ -20,6 +20,7 @@ const api = {
   refreshRuntime: () => ipcRenderer.invoke("runtime:refresh") as Promise<void>,
   checkSystem: () => ipcRenderer.invoke("system:check") as Promise<SystemCheck>,
   finishOnboarding: () => ipcRenderer.invoke("onboarding:finish") as Promise<void>,
+  setTheme: (theme: ThemeChoice) => ipcRenderer.invoke("theme:set", theme) as Promise<void>,
   restartOnboarding: () => ipcRenderer.invoke("onboarding:restart") as Promise<void>,
   openTerminal: () => ipcRenderer.invoke("app:open-terminal") as Promise<string>,
   copy: (text: string) => ipcRenderer.invoke("clipboard:write", text) as Promise<void>,
