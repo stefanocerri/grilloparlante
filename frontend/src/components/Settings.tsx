@@ -1,126 +1,132 @@
-import { useEffect, useState } from "react";
-import type { AppSnapshot, TursoSettings } from "@shared/contracts";
-import { FolderOpen, Power, RefreshCw } from "lucide-react";
+import type { ReactNode } from "react";
+import type { AppSnapshot, ThemeChoice } from "@shared/contracts";
+import { FolderOpen, Monitor, Moon, Power, RefreshCw, Sun, Wand2 } from "lucide-react";
+import { AppQrs, Disclosure, TursoForm, TursoSetup, tursoConfigured } from "./TursoForm";
+
+function Section({ title, description, children, action }: { title: string; description?: string; children: ReactNode; action?: ReactNode }) {
+  return (
+    <section className="card overflow-hidden">
+      <div className="flex items-start gap-2 border-b border-line px-3 py-2.5">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">{title}</p>
+          {description && <p className="mt-0.5 text-xs leading-relaxed text-mute">{description}</p>}
+        </div>
+        {action}
+      </div>
+      <div className="p-3">{children}</div>
+    </section>
+  );
+}
 
 export function Settings({ snapshot }: { snapshot: AppSnapshot }) {
-  const [form, setForm] = useState<TursoSettings>(snapshot.turso);
-  const [message, setMessage] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [qr, setQr] = useState<{ link: string; image: string } | null>(null);
-
-  useEffect(() => {
-    void window.grillo.tursoQr().then(setQr);
-  }, [snapshot.turso]);
-  const dirty = JSON.stringify(form) !== JSON.stringify(snapshot.turso);
-
-  useEffect(() => setForm(snapshot.turso), [snapshot.turso]);
-
-  const saveAndTest = async () => {
-    setBusy(true);
-    setMessage(null);
-    try {
-      if (dirty) await window.grillo.saveTurso(form);
-      setMessage(await window.grillo.testTurso());
-    } catch (error) {
-      setMessage((error as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, ""));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const field = (key: keyof TursoSettings, label: string, placeholder: string, secret = false) => (
-    <label className="block">
-      <span className="text-[11px] text-mute">{label}</span>
-      <input
-        className="field mt-0.5"
-        type={secret ? "password" : "text"}
-        value={form[key]}
-        placeholder={placeholder}
-        spellCheck={false}
-        onChange={(event) => setForm({ ...form, [key]: event.target.value })}
-      />
-    </label>
-  );
-
-  const syncColor =
+  const syncDot =
     snapshot.sync.state === "error"
-      ? "bg-warn"
+      ? "bg-danger"
       : snapshot.sync.state === "uploading"
         ? "bg-accent animate-pulse"
         : snapshot.sync.state === "idle"
           ? "bg-ok"
-          : "bg-black/20";
+          : "bg-faint/50";
+
+  const configured = tursoConfigured(snapshot);
 
   return (
-    <div className="flex flex-col gap-4 p-3">
-      <section className="card flex flex-col gap-2.5 p-3">
-        <div>
-          <p className="text-sm font-semibold">Turso</p>
-          <p className="text-[11px] leading-relaxed text-mute">
-            Ogni capitolo pronto viene caricato sul tuo database Turso; le app di ascolto lo leggono da lì. Le
-            notizie scadute vengono tolte da Turso (sul Mac restano).
-          </p>
-        </div>
-        {field("url", "Indirizzo del database", "libsql://grillo-tuonome.turso.io")}
-        {field("writeToken", "Token di scrittura (resta su questo Mac)", "turso db tokens create grillo", true)}
-        {field("readToken", "Token di sola lettura (per le PWA)", "turso db tokens create grillo --read-only", true)}
-        {field("pwaUrl", "Indirizzo della PWA per il telefono", "https://grilloparlante.vercel.app")}
-        <div className="flex gap-1.5">
-          <button className="btn-primary flex-1" disabled={busy || !form.url || !form.writeToken} onClick={saveAndTest}>
-            {dirty ? "Salva e prova" : "Prova la connessione"}
-          </button>
+    <div className="flex flex-col gap-3 p-3">
+      <Section
+        title="Turso"
+        description="Ogni capitolo pronto viene caricato sul tuo database; l'app del telefono lo legge da lì. Le notizie scadute vengono tolte da Turso (sul Mac restano)."
+        action={
           <button
-            className="icon-btn border border-line"
+            className="icon-btn -mr-1"
             title="Ricarica tutto su Turso"
             disabled={snapshot.sync.state === "off"}
             onClick={() => void window.grillo.syncTurso()}
           >
             <RefreshCw size={14} />
           </button>
+        }
+      >
+        <div className="space-y-4">
+          {configured ? (
+            <div className="space-y-1">
+              <p className="flex items-center gap-1.5 text-xs">
+                <span className={`dot ${syncDot}`} />
+                {snapshot.sync.message}
+              </p>
+              <p className="truncate font-mono text-2xs text-faint">{snapshot.turso.url}</p>
+            </div>
+          ) : (
+            <TursoSetup />
+          )}
+          <Disclosure title={configured ? "Modifica a mano" : "Configurazione avanzata (ho già un database)"}>
+            <TursoForm snapshot={snapshot} />
+          </Disclosure>
+          {configured && (
+            <Disclosure title="Configura di nuovo con un Platform API token">
+              <TursoSetup />
+            </Disclosure>
+          )}
         </div>
-        {message && <p className="text-[11px] text-mute">{message}</p>}
-        <p className="flex items-center gap-1.5 text-[11px] text-mute">
-          <span className={`h-2 w-2 shrink-0 rounded-full ${syncColor}`} />
-          {snapshot.sync.message}
-        </p>
-      </section>
+      </Section>
 
-      <section className="card flex flex-col items-center gap-2 p-3 text-center">
-        <p className="self-start text-sm font-semibold">Telefono</p>
-        {qr ? (
-          <>
-            <img src={qr.image} className="h-36 w-36" alt="QR per collegare il telefono" />
-            <p className="text-[11px] leading-relaxed text-mute">
-              Inquadralo con il telefono: apre la PWA già collegata. Su iPhone poi Condividi → "Aggiungi alla schermata
-              Home".
-            </p>
-          </>
-        ) : (
-          <p className="self-start text-[11px] text-mute">
-            Inserisci indirizzo e token di sola lettura per avere il QR che collega il telefono.
-          </p>
-        )}
-      </section>
+      <Section title="App di ascolto" description="Un QR per ogni app del telefono. Nel QR c'è solo la chiave di sola lettura.">
+        <AppQrs snapshot={snapshot} />
+      </Section>
 
-      <section className="card flex flex-col gap-1 p-3">
-        <p className="text-sm font-semibold">Libreria</p>
-        <button className="flex items-center gap-2 text-left text-[11px] text-mute hover:text-ink" onClick={() => void window.grillo.revealLibrary()}>
-          <FolderOpen size={13} className="shrink-0" />
-          <span className="truncate">{snapshot.libraryDir}</span>
-        </button>
-      </section>
+      <Section title="Aspetto">
+        <ThemePicker value={snapshot.theme} />
+      </Section>
 
-      <section className="card flex flex-col gap-1 p-3">
-        <p className="text-sm font-semibold">Motore voce</p>
-        <p className="text-[11px] text-mute">
+      <Section title="Motore voce">
+        <p className="text-xs text-mute">
           {snapshot.runtime.message}
           {snapshot.runtime.device ? ` · ${snapshot.runtime.device}` : ""}
         </p>
-      </section>
+      </Section>
 
-      <button className="btn-ghost" onClick={() => void window.grillo.quit()}>
-        <Power size={14} /> Esci da Grillo parlante
-      </button>
+      <Section title="Libreria">
+        <button
+          className="flex w-full items-center gap-2 text-left font-mono text-2xs text-mute hover:text-ink"
+          onClick={() => void window.grillo.revealLibrary()}
+        >
+          <FolderOpen size={13} className="shrink-0" />
+          <span className="truncate">{snapshot.libraryDir}</span>
+        </button>
+      </Section>
+
+      <div className="flex gap-2">
+        <button className="btn-secondary flex-1" onClick={() => void window.grillo.restartOnboarding()}>
+          <Wand2 size={14} /> Configurazione guidata
+        </button>
+        <button className="btn-secondary flex-1" onClick={() => void window.grillo.quit()}>
+          <Power size={14} /> Esci
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const THEMES: { id: ThemeChoice; label: string; icon: typeof Sun }[] = [
+  { id: "system", label: "Sistema", icon: Monitor },
+  { id: "light", label: "Chiaro", icon: Sun },
+  { id: "dark", label: "Scuro", icon: Moon }
+];
+
+/** Chiaro, scuro o come Impostazioni di Sistema → Aspetto. */
+function ThemePicker({ value }: { value: ThemeChoice }) {
+  return (
+    <div className="flex gap-0.5 rounded-md border border-line bg-subtle p-0.5">
+      {THEMES.map(({ id, label, icon: Icon }) => (
+        <button
+          key={id}
+          onClick={() => void window.grillo.setTheme(id)}
+          className={`flex h-7 flex-1 items-center justify-center gap-1.5 rounded text-xs font-medium transition-colors ${
+            value === id ? "bg-bg text-ink shadow-[0_0_0_1px_rgb(var(--line))]" : "text-mute hover:text-ink"
+          }`}
+        >
+          <Icon size={13} /> {label}
+        </button>
+      ))}
     </div>
   );
 }

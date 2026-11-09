@@ -2,18 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Geist (licenza SIL OFL) dal pacchetto npm "geist": Vite lo include nel bundle. */
+@font-face {
+  font-family: "Geist";
+  src: url("@geist-fonts/geist-sans/Geist-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("@geist-fonts/geist-mono/GeistMono-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: block;
+}
+
+/* Colori come canali RGB, cosi Tailwind puo usare le trasparenze (es. bg-accent/10). */
 :root {
-  --color-paper: #f4f1eb;
-  --color-panel: #fbf9f5;
-  --color-ink: #15120f;
-  --color-mute: #6f685f;
-  --color-line: rgba(21, 18, 15, 0.12);
-  --color-accent: #ff6a3d;
-  --color-ok: #1d8b5d;
-  --color-warn: #c2410c;
-  --font-display: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-body: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: "SF Mono", Menlo, monospace;
+  color-scheme: light;
+  --bg: 255 255 255;
+  --subtle: 250 250 250;
+  --ink: 23 23 23;
+  --mute: 102 102 102;
+  --faint: 143 143 143;
+  --line: 235 235 235;
+  --accent: 0 107 255;
+  --ok: 22 150 76;
+  --warn: 217 119 6;
+  --danger: 218 47 53;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: 10 10 10;
+    --subtle: 20 20 20;
+    --ink: 237 237 237;
+    --mute: 161 161 161;
+    --faint: 112 112 112;
+    --line: 41 41 41;
+    --accent: 52 131 255;
+    --ok: 72 196 118;
+    --warn: 255 178 36;
+    --danger: 255 99 105;
+  }
 }
 
 html,
@@ -24,48 +56,127 @@ body,
 
 body {
   margin: 0;
-  font-size: 13px;
   overflow: hidden;
-  background: var(--color-paper);
-  color: var(--color-ink);
-  font-family: var(--font-body);
+  @apply bg-bg font-sans text-sm text-ink;
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01", "cv11";
   user-select: none;
 }
 
 input,
-textarea {
+textarea,
+code {
   user-select: text;
 }
 
-.btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40;
+::selection {
+  @apply bg-accent/25;
 }
 
-.btn-primary {
-  @apply btn bg-ink text-paper hover:bg-black;
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--line)) transparent;
 }
 
-.btn-accent {
-  @apply btn bg-accent text-white hover:brightness-95;
-}
+@layer components {
+  .btn {
+    @apply inline-flex h-8 shrink-0 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:pointer-events-none disabled:opacity-40;
+  }
 
-.btn-ghost {
-  @apply btn border border-line bg-transparent hover:bg-black/5;
-}
+  .btn-lg {
+    @apply h-10 px-4 text-base;
+  }
 
-.card {
-  @apply rounded-xl border border-line bg-white/70;
-}
+  .btn-sm {
+    @apply h-7 px-2.5 text-xs;
+  }
 
-.icon-btn {
-  @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink transition hover:bg-black/5 disabled:opacity-30;
-}
+  /* Bianco su nero (o nero su bianco col tema scuro): l'azione principale. */
+  .btn-primary {
+    @apply btn bg-ink text-bg hover:bg-ink/85;
+  }
 
-.eyebrow {
-  @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-mute;
-}
+  .btn-secondary {
+    @apply btn border border-line bg-bg text-ink hover:border-ink/20 hover:bg-subtle;
+  }
 
-.field {
-  @apply w-full rounded-xl border border-line bg-white px-3 py-2 text-sm outline-none focus:border-ink;
+  .btn-ghost {
+    @apply btn text-mute hover:bg-ink/5 hover:text-ink;
+  }
+
+  .btn-danger {
+    @apply btn bg-danger text-white hover:bg-danger/90;
+  }
+
+  .icon-btn {
+    @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-mute transition-colors hover:bg-ink/5 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:pointer-events-none disabled:opacity-30;
+  }
+
+  .card {
+    @apply rounded-lg border border-line bg-bg;
+  }
+
+  .input {
+    @apply h-8 w-full rounded-md border border-line bg-bg px-2.5 text-sm text-ink outline-none transition-shadow placeholder:text-faint hover:border-ink/20 focus:border-ink/30 focus:ring-[3px] focus:ring-ink/10;
+  }
+
+  .label {
+    @apply text-xs font-medium text-mute;
+  }
+
+  .eyebrow {
+    @apply font-mono text-2xs font-medium uppercase tracking-wider text-faint;
+  }
+
+  .badge {
+    @apply inline-flex h-5 shrink-0 items-center gap-1 rounded-full px-2 text-2xs font-medium;
+  }
+
+  .badge-gray {
+    @apply badge bg-ink/[0.06] text-mute;
+  }
+
+  .badge-blue {
+    @apply badge bg-accent/10 text-accent;
+  }
+
+  .badge-green {
+    @apply badge bg-ok/10 text-ok;
+  }
+
+  .badge-amber {
+    @apply badge bg-warn/10 text-warn;
+  }
+
+  .dot {
+    @apply inline-block h-2 w-2 shrink-0 rounded-full;
+  }
+
+  .progress {
+    @apply h-1 overflow-hidden rounded-full bg-ink/10;
+  }
+
+  .progress > div {
+    @apply h-full rounded-full bg-accent transition-all duration-500;
+  }
+
+  .note {
+    @apply rounded-md border px-3 py-2 text-xs leading-relaxed;
+  }
+
+  .note-warn {
+    @apply note border-warn/30 bg-warn/[0.06] text-warn;
+  }
+
+  .note-error {
+    @apply note border-danger/30 bg-danger/[0.06] text-danger;
+  }
+
+  .note-info {
+    @apply note border-line bg-subtle text-mute;
+  }
+
+  .row-hover {
+    @apply transition-colors hover:bg-ink/[0.03];
+  }
 }

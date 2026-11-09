@@ -10,7 +10,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
-      "@shared": path.resolve(__dirname, "../shared")
+      "@shared": path.resolve(__dirname, "../shared"),
+      // File dei font Geist: il pacchetto npm non li esporta, li prendiamo dalla cartella.
+      "@geist-fonts": path.resolve(__dirname, "../node_modules/geist/dist/fonts")
     }
   },
   build: {

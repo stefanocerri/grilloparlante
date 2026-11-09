@@ -1,4 +1,4 @@
-import { app, BrowserWindow, screen, shell } from "electron";
+import { app, BrowserWindow, nativeTheme, screen, shell } from "electron";
 import path from "node:path";
 
 /** Pannello che si apre sotto l'icona nella barra dei menu (come Sniffa). */
@@ -6,6 +6,11 @@ export const POPOVER_WIDTH = 380;
 export const POPOVER_HEIGHT = 600;
 
 let popover: BrowserWindow | null = null;
+
+/** Stesso colore di sfondo dell'interfaccia (tema chiaro o scuro del Mac), per non vedere lampi all'apertura. */
+export function popoverBackground() {
+  return nativeTheme.shouldUseDarkColors ? "#0a0a0a" : "#ffffff";
+}
 let hideTimer: NodeJS.Timeout | null = null;
 /** Mentre e aperto un dialogo (scelta file, conferma) il pannello non deve chiudersi. */
 let keepOpen = 0;
@@ -31,7 +36,7 @@ export function getPopover(): BrowserWindow {
     skipTaskbar: true,
     alwaysOnTop: true,
     roundedCorners: true,
-    backgroundColor: "#f4f1eb",
+    backgroundColor: popoverBackground(),
     ...(process.platform === "darwin" ? { type: "panel" as const } : {}),
     webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true }
   });

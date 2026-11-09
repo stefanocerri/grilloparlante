@@ -1,15 +1,17 @@
-import { app, dialog, ipcMain, protocol, shell } from "electron";
+import { app, clipboard, dialog, ipcMain, nativeTheme, protocol, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
 import QRCode from "qrcode";
-import type { AppSnapshot, ImportRequest, TursoSettings, VoiceInfo } from "../shared/contracts";
+import type { AppQr, AppSnapshot, ThemeChoice, ImportRequest, ListeningApp, TursoSettings, TursoSetupOutcome, VoiceInfo } from "../shared/contracts";
 import { bookDir, deleteBook, listBooks, readBook, toView } from "./library";
 import { backendRoot, libraryDir, readJson, userDataFile, writeJson } from "./paths";
-import { getPopover, hidePopover, withPopoverPinned } from "./popover";
+import { getPopover, hidePopover, popoverBackground, withPopoverPinned } from "./popover";
 import { ConversionQueue } from "./queue";
 import { RuntimeManager } from "./runtime";
 import { TursoSync } from "./sync";
+import { checkSystem } from "./system";
+import { SetupError, setupLink, setupTurso } from "./tursoSetup";
 import { createTray, updateTray } from "./tray";
 
 protocol.registerSchemesAsPrivileged([
@@ -19,19 +21,57 @@ protocol.registerSchemesAsPrivileged([
 const SUPPORTED = new Set([".pdf", ".epub", ".txt", ".md", ".json"]);
 const SYNC_EVERY_MS = 60 * 60 * 1000;
 const settingsFile = () => userDataFile("settings.json");
-const DEFAULT_PWA_URL = "https://grilloparlante.vercel.app";
+/** Le app di ascolto, in repository separati. L'indirizzo lo inserisce l'utente dopo averle pubblicate. */
+const DEFAULT_APPS: ListeningApp[] = [
+  { id: "ilmatta", name: "ilmatta", url: "" },
+  { id: "fomo", name: "fomo", url: "" }
+];
+/** Vecchio indirizzo predefinito, quando la PWA stava in questo repository: non va migrato. */
+const LEGACY_PWA_URL = "https://grilloparlante.vercel.app";
+
+function cleanApps(apps: ListeningApp[] | undefined): ListeningApp[] {
+  const list = DEFAULT_APPS.map((app) => ({ ...app, url: apps?.find((item) => item.id === app.id)?.url?.trim() ?? "" }));
+  const extra = (apps ?? []).filter((app) => !DEFAULT_APPS.some((item) => item.id === app.id));
+  return [...list, ...extra.map((app) => ({ ...app, url: app.url.trim() }))];
+}
 
 function loadTurso(): TursoSettings {
-  const stored = readJson<{ turso?: Partial<TursoSettings> }>(settingsFile(), {}).turso ?? {};
+  const stored = readJson<{ turso?: Partial<TursoSettings> & { pwaUrl?: string } }>(settingsFile(), {}).turso ?? {};
+  let apps = stored.apps;
+  // settings.json di prima: un solo pwaUrl, che era la PWA ora chiamata ilmatta.
+  if (!apps && stored.pwaUrl && stored.pwaUrl.replace(/\/+$/, "") !== LEGACY_PWA_URL) {
+    apps = [{ id: "ilmatta", name: "ilmatta", url: stored.pwaUrl }];
+  }
   return {
     url: stored.url ?? "",
     writeToken: stored.writeToken ?? "",
     readToken: stored.readToken ?? "",
-    pwaUrl: stored.pwaUrl || DEFAULT_PWA_URL
+    apps: cleanApps(apps)
   };
 }
 
+/**
+ * Configurazione guidata: chi aveva gia collegato Turso prima che esistesse la consideriamo fatta.
+ */
+function loadOnboarded(): boolean {
+  const stored = readJson<{ onboarded?: boolean; turso?: { url?: string } }>(settingsFile(), {});
+  return stored.onboarded ?? Boolean(stored.turso?.url);
+}
+
+function saveSettings(patch: Record<string, unknown>) {
+  const stored = readJson<Record<string, unknown>>(settingsFile(), {});
+  writeJson(settingsFile(), { ...stored, ...patch });
+}
+
 let turso = loadTurso();
+let onboarded = loadOnboarded();
+
+function loadTheme(): ThemeChoice {
+  const stored = readJson<{ theme?: ThemeChoice }>(settingsFile(), {}).theme;
+  return stored === "light" || stored === "dark" ? stored : "system";
+}
+
+let theme = loadTheme();
 let broadcastTimer: NodeJS.Timeout | null = null;
 
 const runtime = new RuntimeManager(broadcast);
@@ -60,6 +100,8 @@ function voices(): VoiceInfo[] {
 
 function snapshot(): AppSnapshot {
   return {
+    theme,
+    onboarded,
     runtime: runtime.status,
     voices: voices(),
     books: listBooks().map((book) =>
@@ -145,6 +187,12 @@ if (!app.requestSingleInstanceLock()) {
     void runtime.refresh();
     sync.syncAll();
     setInterval(() => sync.syncAll(), SYNC_EVERY_MS);
+    // themeSource cambia anche prefers-color-scheme nell'interfaccia: il CSS non deve sapere altro.
+    nativeTheme.themeSource = theme;
+    nativeTheme.on("updated", () => {
+      const popover = getPopover();
+      if (!popover.isDestroyed()) popover.setBackgroundColor(popoverBackground());
+    });
     broadcast();
   });
 }
@@ -163,6 +211,34 @@ ipcMain.handle("app:hide", () => hidePopover());
 ipcMain.handle("app:quit", () => app.quit());
 
 ipcMain.handle("runtime:install", () => runtime.install());
+
+ipcMain.handle("runtime:refresh", () => runtime.refresh());
+
+ipcMain.handle("system:check", () => checkSystem());
+
+ipcMain.handle("onboarding:finish", () => {
+  onboarded = true;
+  saveSettings({ onboarded });
+  broadcast();
+});
+
+ipcMain.handle("theme:set", (_event, next: ThemeChoice) => {
+  theme = next === "light" || next === "dark" ? next : "system";
+  nativeTheme.themeSource = theme;
+  saveSettings({ theme });
+  broadcast();
+});
+
+ipcMain.handle("onboarding:restart", () => {
+  onboarded = false;
+  saveSettings({ onboarded });
+  broadcast();
+});
+
+/** Apre il Terminale: nella configurazione guidata l'utente ci incolla i comandi copiati. */
+ipcMain.handle("app:open-terminal", () => shell.openPath("/System/Applications/Utilities/Terminal.app"));
+
+ipcMain.handle("clipboard:write", (_event, text: string) => clipboard.writeText(text));
 
 ipcMain.handle("dialog:pick-book", () =>
   withPopoverPinned(async () => {
@@ -213,29 +289,68 @@ ipcMain.handle("book:delete", async (_event, bookId: string) => {
   await sync.deleteBook(bookId).catch(() => undefined);
 });
 
-ipcMain.handle("turso:save", (_event, next: TursoSettings) => {
-  const clean = {
+function applyTurso(next: TursoSettings) {
+  const clean: TursoSettings = {
     url: next.url.trim(),
     writeToken: next.writeToken.trim(),
     readToken: next.readToken.trim(),
-    pwaUrl: next.pwaUrl?.trim() || DEFAULT_PWA_URL
+    apps: cleanApps(next.apps)
   };
   const changedTarget = clean.url !== turso.url || clean.writeToken !== turso.writeToken;
   turso = clean;
-  const stored = readJson<Record<string, unknown>>(settingsFile(), {});
-  writeJson(settingsFile(), { ...stored, turso });
+  saveSettings({ turso });
   if (changedTarget) sync.reset();
   broadcast();
+}
+
+ipcMain.handle("turso:save", (_event, next: TursoSettings) => applyTurso(next));
+
+/** Un database appena creato può impiegare qualche secondo a rispondere: riprovo un po' prima di arrendermi. */
+async function testWithRetry(attempts = 6): Promise<string> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await sync.testConnection();
+    } catch (error) {
+      if (attempt >= attempts) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+    }
+  }
+}
+
+/**
+ * Configurazione guidata con il Platform API token: crea o riusa gruppo e database, salva url e chiavi,
+ * crea le tabelle (testConnection) e prova la connessione. Il Platform API token non viene salvato.
+ */
+ipcMain.handle("turso:setup", async (_event, platformToken: string, org?: string): Promise<TursoSetupOutcome> => {
+  try {
+    const result = await setupTurso(platformToken, org);
+    if (result.status === "choose-org") return result;
+    applyTurso({ ...turso, url: result.url, writeToken: result.writeToken, readToken: result.readToken });
+    const tested = await testWithRetry().catch((error: Error) => {
+      throw new SetupError(
+        `Il database è pronto, ma la prova di connessione non è riuscita: ${error.message}. Riprova tra un minuto con "Prova la connessione".`
+      );
+    });
+    const created = result.createdDatabase ? "Ho creato il database «grillo»" : "Ho ritrovato il database «grillo»";
+    return { status: "done", message: `${created} (${result.org}). ${tested}` };
+  } catch (error) {
+    if (error instanceof SetupError) throw new Error(error.message);
+    throw new Error(`Configurazione non riuscita: ${(error as Error).message}`);
+  }
 });
 
 ipcMain.handle("turso:test", () => sync.testConnection());
 
 ipcMain.handle("turso:sync", () => sync.syncAll());
 
-/** QR per collegare la PWA: indirizzo e chiave di sola lettura viaggiano nel frammento #, mai al server. */
-ipcMain.handle("turso:qr", async () => {
-  if (!turso.url || !turso.readToken) return null;
-  const params = new URLSearchParams({ db: turso.url, token: turso.readToken });
-  const link = `${turso.pwaUrl.replace(/\/+$/, "")}/#setup?${params.toString()}`;
-  return { link, image: await QRCode.toDataURL(link, { margin: 1, width: 280 }) };
+/** Un QR per ogni app di ascolto con un indirizzo: database e chiave di sola lettura nel frammento #, mai al server. */
+ipcMain.handle("turso:qr", async (): Promise<AppQr[]> => {
+  if (!turso.url || !turso.readToken) return [];
+  const apps = turso.apps.filter((app) => app.url);
+  return Promise.all(
+    apps.map(async (app) => {
+      const link = setupLink(app.url, turso.url, turso.readToken);
+      return { id: app.id, name: app.name, link, image: await QRCode.toDataURL(link, { margin: 1, width: 280 }) };
+    })
+  );
 });
