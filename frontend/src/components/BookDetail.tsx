@@ -62,41 +62,53 @@ export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snap
     <div className="flex flex-col gap-3 p-3">
       <header className="flex gap-3">
         {book.coverUrl ? (
-          <img src={book.coverUrl} className="h-24 w-16 shrink-0 rounded-lg object-cover shadow" alt="" />
+          <img src={book.coverUrl} className="h-24 w-16 shrink-0 rounded object-cover ring-1 ring-line" alt="" />
         ) : (
-          <div className="flex h-24 w-16 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm">
-            <Icon size={20} className="text-mute" />
+          <div className="flex h-24 w-16 shrink-0 items-center justify-center rounded border border-line bg-subtle">
+            <Icon size={20} className="text-faint" />
           </div>
         )}
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex items-center">
-            <p className="eyebrow flex-1">{kind.label}</p>
+          <div className="flex items-center gap-1">
+            <span className="badge-gray">{kind.label}</span>
+            <span className="flex-1" />
             <button className="icon-btn -my-1" onClick={() => void window.grillo.revealBook(book.id)} title="Apri nel Finder">
               <FolderOpen size={14} />
             </button>
-            <button className="icon-btn -my-1 -mr-1" onClick={remove} title="Elimina">
+            <button className="icon-btn -my-1 -mr-1 hover:text-danger" onClick={remove} title="Elimina">
               <Trash2 size={14} />
             </button>
           </div>
-          <h2 className="line-clamp-2 text-base font-semibold leading-snug">{book.title}</h2>
+          <h2 className="mt-1.5 line-clamp-2 text-base font-semibold leading-snug tracking-tight">{book.title}</h2>
           {book.author && <p className="truncate text-xs text-mute">{book.author}</p>}
-          <p className="mt-auto text-[11px] text-mute">
-            {book.voice.name} · {book.speed.toFixed(1)}× · {book.readyChapters}/{book.chapters.length} pronti
-            {book.totalDuration ? ` · ${formatDuration(book.totalDuration)}` : ""}
+          <p className="mt-auto flex flex-wrap items-center gap-x-1 font-mono text-2xs text-mute">
+            <span>{book.voice.name}</span>
+            <span className="text-faint">·</span>
+            <span>{book.speed.toFixed(1)}×</span>
+            <span className="text-faint">·</span>
+            <span>
+              {book.readyChapters}/{book.chapters.length}
+            </span>
+            {book.totalDuration ? (
+              <>
+                <span className="text-faint">·</span>
+                <span>{formatDuration(book.totalDuration)}</span>
+              </>
+            ) : null}
           </p>
         </div>
       </header>
 
       {pending.length > 0 && (
         <div className="flex items-center gap-1.5">
-          <button className="btn-accent flex-1" onClick={() => convert(pending.map((c) => c.index))}>
-            Converti tutto · {formatMinutes(pendingMinutes)}
+          <button className="btn-primary flex-1" onClick={() => convert(pending.map((c) => c.index))}>
+            Converti tutto <span className="font-mono text-xs opacity-60">{formatMinutes(pendingMinutes)}</span>
           </button>
           {pending.length > 2 && (
-            <div className="flex items-center rounded-full border border-line pl-2.5 text-xs">
+            <div className="flex h-8 items-center rounded-md border border-line pl-2.5 text-xs text-mute">
               fino al
               <select
-                className="bg-transparent px-1 py-1.5 outline-none"
+                className="bg-transparent px-1 font-mono text-ink outline-none"
                 value={until}
                 onChange={(event) => setUntil(Number(event.target.value))}
               >
@@ -106,7 +118,11 @@ export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snap
                   </option>
                 ))}
               </select>
-              <button className="btn-primary px-3 py-1.5" disabled={!untilChapters.length} onClick={() => convert(untilChapters)}>
+              <button
+                className="h-full border-l border-line px-2.5 font-medium text-ink hover:bg-subtle disabled:opacity-40"
+                disabled={!untilChapters.length}
+                onClick={() => convert(untilChapters)}
+              >
                 Vai
               </button>
             </div>
@@ -116,7 +132,7 @@ export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snap
 
       {running && <JobCard snapshot={snapshot} />}
 
-      <ol className="card divide-y divide-line">
+      <ol className="card divide-y divide-line overflow-hidden">
         {book.chapters.map((chapter) => {
           const runningChapters = snapshot.queue.running?.bookId === book.id ? snapshot.queue.running.chapters : [];
           const isRunning =
@@ -125,21 +141,24 @@ export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snap
           const ready = chapter.status === "ready";
           const uploaded = book.uploadedChapters.includes(chapter.index);
           const progress = Math.round((running?.chapterProgress ?? 0) * 100);
+          const current = playing === chapter.index;
           return (
-            <li key={chapter.index} className="flex items-center gap-2 px-3 py-2">
-              <span className="w-5 shrink-0 text-right font-mono text-[10px] text-mute">{chapter.index}</span>
+            <li key={chapter.index} className={`flex items-center gap-2.5 px-3 py-2 ${current ? "bg-accent/[0.05]" : ""}`}>
+              <span className={`w-5 shrink-0 text-right font-mono text-2xs ${current ? "text-accent" : "text-faint"}`}>
+                {String(chapter.index).padStart(2, "0")}
+              </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium">{chapter.title}</p>
-                <p className="flex items-center gap-1 text-[11px] text-mute">
+                <p className="flex items-center gap-1 font-mono text-2xs text-mute">
                   {ready ? formatDuration(chapter.duration) : formatMinutes(chapter.estimatedMinutes)}
-                  {isRunning && ` · ${progress}%`}
+                  {isRunning && <span className="text-accent">· {progress}%</span>}
                   {queued && " · in coda"}
-                  {chapter.meta?.source && ` · ${chapter.meta.source}`}
-                  {ready && syncOn && uploaded && <Cloud size={11} className="ml-0.5 text-ok" />}
+                  {chapter.meta?.source && <span className="truncate font-sans">· {chapter.meta.source}</span>}
+                  {ready && syncOn && uploaded && <Cloud size={11} className="ml-0.5 shrink-0 text-ok" />}
                 </p>
                 {isRunning && (
-                  <div className="mt-1 h-0.5 overflow-hidden rounded-full bg-black/5">
-                    <div className="h-full bg-accent transition-all duration-500" style={{ width: `${progress}%` }} />
+                  <div className="progress mt-1.5 h-0.5">
+                    <div style={{ width: `${progress}%` }} />
                   </div>
                 )}
               </div>
@@ -149,15 +168,17 @@ export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snap
                 </a>
               )}
               {ready ? (
-                <button className="icon-btn" onClick={() => play(chapter)} title="Ascolta">
-                  {playing === chapter.index && !paused ? <Pause size={13} /> : <Play size={13} />}
+                <button className={`icon-btn ${current ? "text-accent" : ""}`} onClick={() => play(chapter)} title="Ascolta">
+                  {current && !paused ? <Pause size={13} /> : <Play size={13} />}
                 </button>
               ) : isRunning ? (
-                <span className="icon-btn text-mute">
+                <span className="icon-btn text-accent">
                   <Loader2 size={13} className="animate-spin" />
                 </span>
-              ) : queued ? null : (
-                <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => convert([chapter.index])}>
+              ) : queued ? (
+                <span className="badge-gray">in coda</span>
+              ) : (
+                <button className="btn-secondary btn-sm" onClick={() => convert([chapter.index])}>
                   Converti
                 </button>
               )}

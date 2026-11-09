@@ -64,22 +64,24 @@ export function NewItem({
   return (
     <div className="flex flex-col gap-4 p-3">
       <button
-        className="card flex items-center gap-3 px-3 py-2.5 text-left hover:bg-white"
+        className="card row-hover flex items-center gap-3 px-3 py-2.5 text-left"
         onClick={async () => {
           const file = await window.grillo.pickBook();
           if (file) onChangeFile(file);
         }}
         title="Scegli un altro file"
       >
-        <FileText size={18} className="shrink-0 text-mute" />
-        <div className="min-w-0">
+        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-line bg-subtle">
+          <FileText size={15} className="text-mute" />
+        </span>
+        <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{fileName}</p>
-          <p className="text-[11px] text-mute">Clicca per sceglierne un altro</p>
+          <p className="text-2xs text-mute">Clicca per sceglierne un altro</p>
         </div>
       </button>
 
       <section>
-        <p className="eyebrow mb-2">Voce</p>
+        <p className="label mb-2">Voce</p>
         <div className="grid grid-cols-2 gap-2">
           {snapshot.voices.map((voice) => {
             const selected = voice.id === voiceId;
@@ -87,12 +89,12 @@ export function NewItem({
               <div
                 key={voice.id}
                 onClick={() => setVoiceId(voice.id)}
-                className={`flex cursor-pointer items-center gap-2 rounded-xl border p-2 transition ${
-                  selected ? "border-ink bg-white shadow-sm" : "border-line hover:bg-white/60"
+                className={`flex cursor-pointer items-center gap-2 rounded-lg border p-2 transition-colors ${
+                  selected ? "border-accent bg-accent/[0.05] ring-1 ring-accent" : "border-line hover:border-ink/20 hover:bg-subtle"
                 }`}
               >
                 <button
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/5 hover:bg-black/10 disabled:opacity-30"
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-line bg-bg text-mute hover:text-ink disabled:opacity-30"
                   disabled={!voice.previewUrl}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -104,7 +106,7 @@ export function NewItem({
                 </button>
                 <div className="min-w-0">
                   <p className="text-sm font-medium leading-tight">{voice.name}</p>
-                  <p className="truncate text-[11px] text-mute">{voice.description}</p>
+                  <p className="truncate text-2xs text-mute">{voice.description}</p>
                 </div>
               </div>
             );
@@ -113,13 +115,15 @@ export function NewItem({
       </section>
 
       <section>
-        <p className="eyebrow mb-2">Velocità</p>
-        <div className="flex gap-1.5">
+        <p className="label mb-2">Velocità</p>
+        <div className="flex gap-0.5 rounded-md border border-line bg-subtle p-0.5">
           {SPEEDS.map((value) => (
             <button
               key={value}
               onClick={() => setSpeed(value)}
-              className={`flex-1 ${value === speed ? "btn-primary" : "btn-ghost"}`}
+              className={`h-7 flex-1 rounded font-mono text-xs transition-colors ${
+                value === speed ? "bg-bg text-ink shadow-[0_0_0_1px_rgb(var(--line))]" : "text-mute hover:text-ink"
+              }`}
             >
               {value.toFixed(1)}×
             </button>
@@ -127,16 +131,14 @@ export function NewItem({
         </div>
       </section>
 
-      {error && <p className="rounded-xl bg-orange-50 p-2.5 text-xs text-warn">{error}</p>}
-      {!engineReady && (
-        <p className="rounded-xl bg-orange-50 p-2.5 text-xs text-warn">Prima va installato il motore voce.</p>
-      )}
+      {error && <p className="note-error">{error}</p>}
+      {!engineReady && <p className="note-warn">Prima va installato il motore voce.</p>}
 
       <div className="flex flex-col gap-2">
-        <button className="btn-accent py-2.5" disabled={!voiceId || importing || !engineReady} onClick={() => start(true)}>
+        <button className="btn-primary btn-lg" disabled={!voiceId || importing || !engineReady} onClick={() => start(true)}>
           {importing ? "Leggo il file…" : "Importa e converti tutto"}
         </button>
-        <button className="btn-ghost" disabled={!voiceId || importing || !engineReady} onClick={() => start(false)}>
+        <button className="btn-secondary" disabled={!voiceId || importing || !engineReady} onClick={() => start(false)}>
           Importa e scegli i capitoli
         </button>
       </div>

@@ -18,7 +18,10 @@ PDF/EPUB/TXT/JSON ──► [app Mac: barra dei menu] ──► backend Python (
     Registro in `userData/turso-sync.json`. Ricontrolla tutto all'avvio e ogni ora.
   - `main.ts`: IPC e invio di uno "snapshot" completo dello stato al pannello a ogni cambiamento.
     Niente Dock: `app.dock.hide()` e `LSUIElement` nel `package.json`.
-- **Interfaccia** (`frontend/`): React, si limita a mostrare lo snapshot e chiamare le azioni IPC.
+- **Interfaccia** (`frontend/`): React, si limita a mostrare lo snapshot e chiamare le azioni IPC. Finché
+  `snapshot.onboarded` è falso mostra la configurazione guidata (`components/Onboarding.tsx`), che usa
+  `system:check` (`electron/system.ts`: processore, spazio libero, Python, Homebrew) e salva `onboarded` in
+  `settings.json`.
   Libreria divisa per tipo (Libri, Articoli, Notizie, Documenti), nuovo import, scheda, impostazioni.
 - **Backend** (`backend/app/`)
   - `import`: estrae il testo e trova i capitoli:

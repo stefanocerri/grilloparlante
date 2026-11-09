@@ -1,33 +1,36 @@
 /** @type {import('tailwindcss').Config} */
+const color = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+
 module.exports = {
-  content: [
-    "./frontend/index.html",
-    "./frontend/src/**/*.{ts,tsx}",
-    "./shared/**/*.{ts,tsx}"
-  ],
+  content: ["./frontend/index.html", "./frontend/src/**/*.{ts,tsx}", "./shared/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        paper: "var(--color-paper)",
-        ink: "var(--color-ink)",
-        accent: "var(--color-accent)",
-        mute: "var(--color-mute)",
-        line: "var(--color-line)",
-        panel: "var(--color-panel)",
-        warn: "var(--color-warn)",
-        ok: "var(--color-ok)"
+        bg: color("bg"),
+        subtle: color("subtle"),
+        ink: color("ink"),
+        mute: color("mute"),
+        faint: color("faint"),
+        line: color("line"),
+        accent: color("accent"),
+        ok: color("ok"),
+        warn: color("warn"),
+        danger: color("danger")
       },
       fontFamily: {
-        display: ["var(--font-display)"],
-        body: ["var(--font-body)"],
-        mono: ["var(--font-mono)"]
+        sans: ["Geist", "-apple-system", "BlinkMacSystemFont", "Helvetica Neue", "sans-serif"],
+        mono: ["Geist Mono", "SF Mono", "Menlo", "monospace"]
       },
-      boxShadow: {
-        panel: "0 14px 60px rgba(20, 19, 16, 0.08)"
+      fontSize: {
+        "2xs": ["11px", "16px"],
+        xs: ["12px", "16px"],
+        sm: ["13px", "20px"],
+        base: ["14px", "20px"]
       },
-      letterSpacing: {
-        punch: "-0.06em"
-      }
+      keyframes: {
+        "fade-in": { from: { opacity: "0", transform: "translateY(4px)" }, to: { opacity: "1", transform: "none" } }
+      },
+      animation: { "fade-in": "fade-in 180ms ease-out" }
     }
   },
   plugins: []

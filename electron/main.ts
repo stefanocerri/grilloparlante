@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain, protocol, shell } from "electron";
+import { app, clipboard, dialog, ipcMain, nativeTheme, protocol, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -6,10 +6,11 @@ import QRCode from "qrcode";
 import type { AppSnapshot, ImportRequest, TursoSettings, VoiceInfo } from "../shared/contracts";
 import { bookDir, deleteBook, listBooks, readBook, toView } from "./library";
 import { backendRoot, libraryDir, readJson, userDataFile, writeJson } from "./paths";
-import { getPopover, hidePopover, withPopoverPinned } from "./popover";
+import { getPopover, hidePopover, popoverBackground, withPopoverPinned } from "./popover";
 import { ConversionQueue } from "./queue";
 import { RuntimeManager } from "./runtime";
 import { TursoSync } from "./sync";
+import { checkSystem } from "./system";
 import { createTray, updateTray } from "./tray";
 
 protocol.registerSchemesAsPrivileged([
@@ -31,7 +32,21 @@ function loadTurso(): TursoSettings {
   };
 }
 
+/**
+ * Configurazione guidata: chi aveva gia collegato Turso prima che esistesse la consideriamo fatta.
+ */
+function loadOnboarded(): boolean {
+  const stored = readJson<{ onboarded?: boolean; turso?: { url?: string } }>(settingsFile(), {});
+  return stored.onboarded ?? Boolean(stored.turso?.url);
+}
+
+function saveSettings(patch: Record<string, unknown>) {
+  const stored = readJson<Record<string, unknown>>(settingsFile(), {});
+  writeJson(settingsFile(), { ...stored, ...patch });
+}
+
 let turso = loadTurso();
+let onboarded = loadOnboarded();
 let broadcastTimer: NodeJS.Timeout | null = null;
 
 const runtime = new RuntimeManager(broadcast);
@@ -60,6 +75,7 @@ function voices(): VoiceInfo[] {
 
 function snapshot(): AppSnapshot {
   return {
+    onboarded,
     runtime: runtime.status,
     voices: voices(),
     books: listBooks().map((book) =>
@@ -145,6 +161,10 @@ if (!app.requestSingleInstanceLock()) {
     void runtime.refresh();
     sync.syncAll();
     setInterval(() => sync.syncAll(), SYNC_EVERY_MS);
+    nativeTheme.on("updated", () => {
+      const popover = getPopover();
+      if (!popover.isDestroyed()) popover.setBackgroundColor(popoverBackground());
+    });
     broadcast();
   });
 }
@@ -163,6 +183,27 @@ ipcMain.handle("app:hide", () => hidePopover());
 ipcMain.handle("app:quit", () => app.quit());
 
 ipcMain.handle("runtime:install", () => runtime.install());
+
+ipcMain.handle("runtime:refresh", () => runtime.refresh());
+
+ipcMain.handle("system:check", () => checkSystem());
+
+ipcMain.handle("onboarding:finish", () => {
+  onboarded = true;
+  saveSettings({ onboarded });
+  broadcast();
+});
+
+ipcMain.handle("onboarding:restart", () => {
+  onboarded = false;
+  saveSettings({ onboarded });
+  broadcast();
+});
+
+/** Apre il Terminale: nella configurazione guidata l'utente ci incolla i comandi copiati. */
+ipcMain.handle("app:open-terminal", () => shell.openPath("/System/Applications/Utilities/Terminal.app"));
+
+ipcMain.handle("clipboard:write", (_event, text: string) => clipboard.writeText(text));
 
 ipcMain.handle("dialog:pick-book", () =>
   withPopoverPinned(async () => {
@@ -222,8 +263,7 @@ ipcMain.handle("turso:save", (_event, next: TursoSettings) => {
   };
   const changedTarget = clean.url !== turso.url || clean.writeToken !== turso.writeToken;
   turso = clean;
-  const stored = readJson<Record<string, unknown>>(settingsFile(), {});
-  writeJson(settingsFile(), { ...stored, turso });
+  saveSettings({ turso });
   if (changedTarget) sync.reset();
   broadcast();
 });

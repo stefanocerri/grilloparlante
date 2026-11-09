@@ -108,7 +108,22 @@ export interface SyncStatus {
   message: string;
 }
 
+/** Controllo del Mac per la configurazione guidata. */
+export interface SystemCheck {
+  /** "arm64" (chip Apple) o "x64" (Intel). */
+  arch: string;
+  macosVersion: string | null;
+  python: { ok: boolean; version: string | null; path: string | null };
+  homebrew: { ok: boolean; path: string | null };
+  /** Spazio libero nel disco dell'utente, in GB (null se non si riesce a leggerlo). */
+  freeDiskGb: number | null;
+  /** Spazio che serve per il motore voce, in GB. */
+  requiredDiskGb: number;
+}
+
 export interface AppSnapshot {
+  /** false finché l'utente non ha completato (o saltato) la configurazione guidata. */
+  onboarded: boolean;
   runtime: RuntimeStatus;
   voices: VoiceInfo[];
   books: BookView[];

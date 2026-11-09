@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { AppSnapshot, BookView, ContentKind } from "@shared/contracts";
-import { Cloud, Upload } from "lucide-react";
+import { ChevronRight, Cloud, Plus } from "lucide-react";
 import { KINDS, kindOf } from "../lib/kinds";
 import { JobCard } from "./JobCard";
 
@@ -20,6 +20,7 @@ export function Home({
 
   const presentKinds = KINDS.filter((kind) => snapshot.books.some((book) => kindOf(book).id === kind.id));
   const books = snapshot.books.filter((book) => filter === "all" || kindOf(book).id === filter);
+  const empty = snapshot.books.length === 0;
 
   return (
     <div className="flex flex-col gap-3 p-3">
@@ -41,19 +42,25 @@ export function Home({
           const file = event.dataTransfer.files[0];
           if (file) onPickFile(window.grillo.pathForFile(file));
         }}
-        className={`flex items-center gap-3 rounded-xl border-2 border-dashed px-3 py-3 text-left transition ${
-          dragging ? "border-accent bg-white" : "border-line hover:border-ink/40 hover:bg-white/60"
-        }`}
+        className={`group flex items-center gap-3 rounded-lg border border-dashed text-left transition-colors ${
+          empty ? "flex-col justify-center px-4 py-10 text-center" : "px-3 py-3"
+        } ${dragging ? "border-accent bg-accent/[0.04]" : "border-ink/15 hover:border-ink/30 hover:bg-subtle"}`}
       >
-        <Upload size={18} className="shrink-0 text-mute" />
+        <span
+          className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-line bg-bg transition-colors ${
+            dragging ? "text-accent" : "text-mute group-hover:text-ink"
+          }`}
+        >
+          <Plus size={16} />
+        </span>
         <div className="min-w-0">
-          <p className="text-sm font-medium">Trascina un file qui o sull'icona</p>
-          <p className="text-[11px] text-mute">PDF, EPUB, TXT, MD o articoli JSON · oppure clicca</p>
+          <p className="text-sm font-medium">{empty ? "Aggiungi il tuo primo libro" : "Aggiungi un file"}</p>
+          <p className="text-xs text-mute">Trascinalo qui o sull'icona · PDF, EPUB, TXT, MD, JSON</p>
         </div>
       </button>
 
       {presentKinds.length > 1 && (
-        <div className="flex gap-1 overflow-x-auto">
+        <div className="flex gap-0.5 overflow-x-auto rounded-md border border-line bg-subtle p-0.5">
           <Tab active={filter === "all"} onClick={() => setFilter("all")}>
             Tutto
           </Tab>
@@ -65,10 +72,8 @@ export function Home({
         </div>
       )}
 
-      {snapshot.books.length === 0 ? (
-        <p className="px-1 py-6 text-center text-xs text-mute">Ancora niente in libreria.</p>
-      ) : (
-        <ul className="card divide-y divide-line">
+      {!empty && (
+        <ul className="card divide-y divide-line overflow-hidden">
           {books.map((book) => (
             <BookRow key={book.id} book={book} snapshot={snapshot} onOpen={() => onOpenBook(book.id)} />
           ))}
@@ -82,8 +87,8 @@ function Tab({ active, onClick, children }: { active: boolean; onClick: () => vo
   return (
     <button
       onClick={onClick}
-      className={`shrink-0 rounded-full px-3 py-1 text-xs transition ${
-        active ? "bg-ink text-paper" : "text-mute hover:bg-black/5"
+      className={`h-6 flex-1 shrink-0 rounded px-2.5 text-xs font-medium transition-colors ${
+        active ? "bg-bg text-ink shadow-[0_0_0_1px_rgb(var(--line))]" : "text-mute hover:text-ink"
       }`}
     >
       {children}
@@ -98,36 +103,47 @@ function BookRow({ book, snapshot, onOpen }: { book: BookView; snapshot: AppSnap
   const total = book.chapters.length;
   const uploaded = book.uploadedChapters.length;
   const allUploaded = snapshot.sync.state !== "off" && total > 0 && uploaded >= total;
+  const done = total > 0 && book.readyChapters >= total;
+
+  const status = converting ? (
+    <span className="badge-blue">
+      <span className="dot h-1.5 w-1.5 animate-pulse bg-accent" /> In corso
+    </span>
+  ) : done ? (
+    <span className="badge-green">Pronto</span>
+  ) : book.readyChapters > 0 ? (
+    <span className="badge-gray font-mono">
+      {book.readyChapters}/{total}
+    </span>
+  ) : (
+    <span className="badge-gray">Da convertire</span>
+  );
 
   return (
     <li>
-      <button onClick={onOpen} className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-black/[0.03]">
+      <button onClick={onOpen} className="row-hover group flex w-full items-center gap-3 px-3 py-2.5 text-left">
         {book.coverUrl ? (
-          <img src={book.coverUrl} className="h-11 w-8 shrink-0 rounded object-cover shadow-sm" alt="" />
+          <img src={book.coverUrl} className="h-10 w-7 shrink-0 rounded-sm object-cover ring-1 ring-line" alt="" />
         ) : (
-          <div className="flex h-11 w-8 shrink-0 items-center justify-center rounded bg-black/5">
-            <Icon size={15} className="text-mute" />
+          <div className="flex h-10 w-7 shrink-0 items-center justify-center rounded-sm border border-line bg-subtle">
+            <Icon size={13} className="text-faint" />
           </div>
         )}
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{book.title}</p>
-          <p className="truncate text-[11px] text-mute">
-            {kind.label} ·{" "}
-            {converting
-              ? "in conversione…"
-              : total === 1
-                ? book.readyChapters
-                  ? "pronto"
-                  : "da convertire"
-                : `${book.readyChapters}/${total} pronti`}{" "}
-            · {book.voice.name}
+          <p className="flex items-center gap-1 truncate text-2xs text-mute">
+            {kind.label}
+            <span className="text-faint">·</span>
+            {book.voice.name}
+            {allUploaded && (
+              <span title="Tutto su Turso" className="ml-0.5 inline-flex">
+                <Cloud size={11} className="text-ok" />
+              </span>
+            )}
           </p>
         </div>
-        {allUploaded && (
-          <span title="Tutto su Turso">
-            <Cloud size={14} className="shrink-0 text-ok" />
-          </span>
-        )}
+        {status}
+        <ChevronRight size={14} className="-mr-1 shrink-0 text-faint transition-transform group-hover:translate-x-0.5" />
       </button>
     </li>
   );

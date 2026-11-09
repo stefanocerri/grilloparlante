@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
+import type { AppSnapshot } from "@shared/contracts";
 import { ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 import { BookDetail } from "./components/BookDetail";
 import { Home } from "./components/Home";
 import { NewItem } from "./components/NewItem";
+import { Onboarding } from "./components/Onboarding";
 import { RuntimeSetup } from "./components/RuntimeSetup";
 import { Settings } from "./components/Settings";
+import { Mark } from "./components/ui";
 import { useSnapshot } from "./lib/useSnapshot";
 
 type View = { kind: "home" } | { kind: "new"; filePath: string } | { kind: "book"; id: string } | { kind: "settings" };
@@ -22,26 +25,40 @@ export function App() {
     }
   }, [snapshot, view]);
 
-  if (!snapshot) return <div className="h-full" />;
+  if (!snapshot) return <div className="h-full bg-bg" />;
+
+  if (!snapshot.onboarded) {
+    return <Onboarding snapshot={snapshot} onPickFile={(filePath) => setView({ kind: "new", filePath })} />;
+  }
 
   const book = view.kind === "book" ? snapshot.books.find((item) => item.id === view.id) : undefined;
   const engineReady = snapshot.runtime.state === "ready";
-  const title =
-    view.kind === "new" ? "Nuovo" : view.kind === "settings" ? "Impostazioni" : view.kind === "book" ? "" : "Grillo parlante";
+  const crumb =
+    view.kind === "new" ? "Nuovo" : view.kind === "settings" ? "Impostazioni" : view.kind === "book" ? book?.title : null;
+  const home = () => setView({ kind: "home" });
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex h-11 shrink-0 items-center gap-1 border-b border-line px-2">
-        {view.kind !== "home" ? (
-          <button className="icon-btn" onClick={() => setView({ kind: "home" })} title="Indietro">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-3">
+        {view.kind === "home" ? (
+          <Mark />
+        ) : (
+          <button className="icon-btn -ml-1" onClick={home} title="Indietro">
             <ArrowLeft size={16} />
           </button>
-        ) : (
-          <span className="w-1" />
         )}
-        <p className="flex-1 truncate text-sm font-semibold">{title}</p>
+        <button className="shrink-0 text-sm font-semibold" onClick={home}>
+          Grillo parlante
+        </button>
+        {crumb && (
+          <>
+            <span className="text-faint">/</span>
+            <p className="min-w-0 truncate text-sm text-mute">{crumb}</p>
+          </>
+        )}
+        <span className="flex-1" />
         {view.kind !== "settings" && (
-          <button className="icon-btn" onClick={() => setView({ kind: "settings" })} title="Impostazioni">
+          <button className="icon-btn -mr-1" onClick={() => setView({ kind: "settings" })} title="Impostazioni">
             <SettingsIcon size={15} />
           </button>
         )}
@@ -60,7 +77,7 @@ export function App() {
             onImported={(id) => setView({ kind: "book", id })}
           />
         ) : book ? (
-          <BookDetail book={book} snapshot={snapshot} onDeleted={() => setView({ kind: "home" })} />
+          <BookDetail book={book} snapshot={snapshot} onDeleted={home} />
         ) : (
           <Home
             snapshot={snapshot}
@@ -69,6 +86,43 @@ export function App() {
           />
         )}
       </main>
+
+      <StatusBar snapshot={snapshot} onOpenSettings={() => setView({ kind: "settings" })} />
     </div>
+  );
+}
+
+/** Barra in basso: stato del motore voce e di Turso, sempre visibile. */
+function StatusBar({ snapshot, onOpenSettings }: { snapshot: AppSnapshot; onOpenSettings: () => void }) {
+  const runtime = snapshot.runtime;
+  const engine =
+    runtime.state === "ready"
+      ? { dot: "bg-ok", text: runtime.device === "mps" ? "Voce pronta · GPU" : "Voce pronta" }
+      : runtime.state === "installing"
+        ? { dot: "bg-accent animate-pulse", text: "Installazione…" }
+        : runtime.state === "checking"
+          ? { dot: "bg-faint", text: "Controllo…" }
+          : { dot: "bg-danger", text: "Voce da installare" };
+  const sync =
+    snapshot.sync.state === "off"
+      ? { dot: "bg-faint/50", text: "Telefono non collegato" }
+      : snapshot.sync.state === "uploading"
+        ? { dot: "bg-accent animate-pulse", text: "Carico su Turso…" }
+        : snapshot.sync.state === "error"
+          ? { dot: "bg-danger", text: "Errore Turso" }
+          : { dot: "bg-ok", text: "Turso" };
+
+  return (
+    <footer className="flex h-8 shrink-0 items-center gap-3 border-t border-line bg-subtle px-3 text-2xs text-mute">
+      <span className="flex items-center gap-1.5" title={runtime.message}>
+        <span className={`dot ${engine.dot}`} />
+        {engine.text}
+      </span>
+      <span className="flex-1" />
+      <button className="flex items-center gap-1.5 hover:text-ink" title={snapshot.sync.message} onClick={onOpenSettings}>
+        <span className={`dot ${sync.dot}`} />
+        {sync.text}
+      </button>
+    </footer>
   );
 }

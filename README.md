@@ -35,7 +35,30 @@ npm run dev
 ```
 
 `bootstrap_backend.sh` crea `backend/.venv` con PyTorch e OmniVoice e scarica il modello (circa 5 GB in tutto).
-Nell'app pacchettizzata lo stesso passo si fa dal pulsante "Installa il motore voce" al primo avvio.
+Nell'app pacchettizzata lo stesso passo si fa dalla configurazione guidata al primo avvio.
+
+## Primo avvio: configurazione guidata
+
+Al primo avvio il pannello apre una guida in sei passi, pensata per chi non ha mai usato il Terminale:
+
+1. **Benvenuto**: cosa fa l'app e quanto ci vuole (circa 15 minuti, quasi tutti di download).
+2. **Il tuo Mac**: controlla da sola processore, spazio libero (ne servono circa 8 GB) e Python. Se Python manca,
+   mostra i comandi da copiare (Homebrew e poi `python@3.12`) con il pulsante per aprire il Terminale e "Ricontrolla".
+3. **Motore voce**: installa OmniVoice con la barra di avanzamento; se qualcosa va storto mostra i dettagli e "Riprova".
+4. **Voce**: anteprime delle quattro voci; quella scelta diventa la predefinita.
+5. **Telefono** (facoltativo): account Turso, comandi già pronti da copiare, campi da incollare, prova della
+   connessione e QR per il telefono.
+6. **Pronto**: riepilogo e "Scegli il primo file".
+
+Si può saltare in qualsiasi momento e rifare da Impostazioni → **Configurazione guidata**. Chi aveva già collegato
+Turso prima di questa versione non la vede.
+
+## Interfaccia
+
+Stile sobrio in bianco e nero con bordi sottili, ispirato alle dashboard per sviluppatori: font
+[Geist](https://vercel.com/font) (licenza SIL OFL, dal pacchetto npm `geist`), segue il tema chiaro o scuro del Mac.
+I colori sono variabili CSS in `frontend/src/styles/index.css`, i componenti di base (pulsanti, card, badge, campi)
+sono classi Tailwind nello stesso file. In basso una barra di stato mostra sempre motore voce e Turso.
 
 ## Libreria
 

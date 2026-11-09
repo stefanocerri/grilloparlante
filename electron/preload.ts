@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
-import type { AppSnapshot, ImportRequest, TursoSettings } from "../shared/contracts";
+import type { AppSnapshot, ImportRequest, SystemCheck, TursoSettings } from "../shared/contracts";
 
 function subscribe<T>(channel: string, listener: (payload: T) => void) {
   const wrapped = (_event: unknown, payload: T) => listener(payload);
@@ -17,6 +17,12 @@ const api = {
   hide: () => ipcRenderer.invoke("app:hide") as Promise<void>,
   quit: () => ipcRenderer.invoke("app:quit") as Promise<void>,
   installRuntime: () => ipcRenderer.invoke("runtime:install") as Promise<void>,
+  refreshRuntime: () => ipcRenderer.invoke("runtime:refresh") as Promise<void>,
+  checkSystem: () => ipcRenderer.invoke("system:check") as Promise<SystemCheck>,
+  finishOnboarding: () => ipcRenderer.invoke("onboarding:finish") as Promise<void>,
+  restartOnboarding: () => ipcRenderer.invoke("onboarding:restart") as Promise<void>,
+  openTerminal: () => ipcRenderer.invoke("app:open-terminal") as Promise<string>,
+  copy: (text: string) => ipcRenderer.invoke("clipboard:write", text) as Promise<void>,
   pickBook: () => ipcRenderer.invoke("dialog:pick-book") as Promise<string | null>,
   confirm: (message: string, detail?: string) => ipcRenderer.invoke("dialog:confirm", message, detail) as Promise<boolean>,
   pathForFile: (file: File) => webUtils.getPathForFile(file),

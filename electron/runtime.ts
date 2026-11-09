@@ -16,7 +16,7 @@ function runtimeDir() {
   return path.join(app.getPath("userData"), "runtime", `${manifest.runtimeId}-v${manifest.runtimeVersion}`);
 }
 
-function pythonVersion(command: string): [number, number] | null {
+export function pythonVersion(command: string): [number, number] | null {
   const result = spawnSync(command, ["-c", "import sys; print(sys.version_info[0], sys.version_info[1])"], {
     encoding: "utf8"
   });
@@ -25,7 +25,7 @@ function pythonVersion(command: string): [number, number] | null {
   return Number.isFinite(major) && Number.isFinite(minor) ? [major, minor] : null;
 }
 
-function bootstrapPython(): string | undefined {
+export function bootstrapPython(): string | undefined {
   const candidates = [
     process.env.GRILLO_BOOTSTRAP_PYTHON_PATH,
     "/opt/homebrew/bin/python3.12",
