@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { AppSnapshot } from "@shared/contracts";
 import { FolderOpen, Power, RefreshCw, Wand2 } from "lucide-react";
-import { PhoneQr, TursoForm } from "./TursoForm";
+import { AppQrs, Disclosure, TursoForm, TursoSetup, tursoConfigured } from "./TursoForm";
 
 function Section({ title, description, children, action }: { title: string; description?: string; children: ReactNode; action?: ReactNode }) {
   return (
@@ -28,6 +28,8 @@ export function Settings({ snapshot }: { snapshot: AppSnapshot }) {
           ? "bg-ok"
           : "bg-faint/50";
 
+  const configured = tursoConfigured(snapshot);
+
   return (
     <div className="flex flex-col gap-3 p-3">
       <Section
@@ -44,15 +46,31 @@ export function Settings({ snapshot }: { snapshot: AppSnapshot }) {
           </button>
         }
       >
-        <TursoForm snapshot={snapshot} />
-        <p className="mt-3 flex items-center gap-1.5 text-2xs text-mute">
-          <span className={`dot ${syncDot}`} />
-          {snapshot.sync.message}
-        </p>
+        <div className="space-y-4">
+          {configured ? (
+            <div className="space-y-1">
+              <p className="flex items-center gap-1.5 text-xs">
+                <span className={`dot ${syncDot}`} />
+                {snapshot.sync.message}
+              </p>
+              <p className="truncate font-mono text-2xs text-faint">{snapshot.turso.url}</p>
+            </div>
+          ) : (
+            <TursoSetup />
+          )}
+          <Disclosure title={configured ? "Modifica a mano" : "Configurazione avanzata (ho già un database)"}>
+            <TursoForm snapshot={snapshot} />
+          </Disclosure>
+          {configured && (
+            <Disclosure title="Configura di nuovo con un Platform API token">
+              <TursoSetup />
+            </Disclosure>
+          )}
+        </div>
       </Section>
 
-      <Section title="Telefono">
-        <PhoneQr snapshot={snapshot} />
+      <Section title="App di ascolto" description="Un QR per ogni app del telefono. Nel QR c'è solo la chiave di sola lettura.">
+        <AppQrs snapshot={snapshot} />
       </Section>
 
       <Section title="Motore voce">

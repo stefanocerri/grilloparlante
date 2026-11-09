@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
-import type { AppSnapshot, ImportRequest, SystemCheck, TursoSettings } from "../shared/contracts";
+import type { AppQr, AppSnapshot, ImportRequest, SystemCheck, TursoSettings, TursoSetupOutcome } from "../shared/contracts";
 
 function subscribe<T>(channel: string, listener: (payload: T) => void) {
   const wrapped = (_event: unknown, payload: T) => listener(payload);
@@ -35,7 +35,10 @@ const api = {
   saveTurso: (settings: TursoSettings) => ipcRenderer.invoke("turso:save", settings) as Promise<void>,
   testTurso: () => ipcRenderer.invoke("turso:test") as Promise<string>,
   syncTurso: () => ipcRenderer.invoke("turso:sync") as Promise<void>,
-  tursoQr: () => ipcRenderer.invoke("turso:qr") as Promise<{ link: string; image: string } | null>
+  /** Il Platform API token passa solo da qui al processo principale: non viene salvato. */
+  setupTurso: (platformToken: string, org?: string) =>
+    ipcRenderer.invoke("turso:setup", platformToken, org) as Promise<TursoSetupOutcome>,
+  tursoQr: () => ipcRenderer.invoke("turso:qr") as Promise<AppQr[]>
 };
 
 export type GrilloApi = typeof api;

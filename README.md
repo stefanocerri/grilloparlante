@@ -10,9 +10,10 @@ file sull'icona per importarlo, tasto destro per uscire. Mentre converte, accant
 2. **Scegli la voce** tra quattro voci italiane: Marco, Paolo, Giulia e Anna.
 3. **Converti** quando vuoi: un capitolo, "fino al capitolo N" o tutto. Se chiudi l'app, la conversione
    riparte da dove era rimasta.
-4. **Turso**: ogni capitolo pronto viene caricato sul tuo database Turso. La PWA di ascolto
-   [ilmatta](https://github.com/stefanocerri/ilmatta) (e qualunque altra PWA che usa lo stesso schema) legge
-   da lì. Le notizie con `expiresAt` passato vengono tolte da Turso; sul Mac restano.
+4. **Ascolta sul telefono**: ogni capitolo pronto viene caricato sul tuo database Turso e le app di ascolto
+   ([ilmatta](https://github.com/stefanocerri/ilmatta), [fomo](https://github.com/stefanocerri/fomo)) lo
+   scaricano da lì, anche per l'ascolto offline. Le notizie con `expiresAt` passato vengono tolte da Turso; sul
+   Mac restano.
 
 Tutto gira sul Mac e senza costi: la sintesi usa [OmniVoice](https://huggingface.co/k2-fsa/OmniVoice) in locale,
 sulla GPU del Mac quando c'è. I pesi di OmniVoice hanno licenza CC-BY-NC, quindi il progetto è solo per uso
@@ -46,8 +47,8 @@ Al primo avvio il pannello apre una guida in sei passi, pensata per chi non ha m
    mostra i comandi da copiare (Homebrew e poi `python@3.12`) con il pulsante per aprire il Terminale e "Ricontrolla".
 3. **Motore voce**: installa OmniVoice con la barra di avanzamento; se qualcosa va storto mostra i dettagli e "Riprova".
 4. **Voce**: anteprime delle quattro voci; quella scelta diventa la predefinita.
-5. **Telefono** (facoltativo): account Turso, comandi già pronti da copiare, campi da incollare, prova della
-   connessione e QR per il telefono.
+5. **Telefono**: incolli un solo Platform API token di Turso, premi "Configura" e Grillo crea database e
+   chiavi; poi un QR per ogni app di ascolto da installare sul telefono. Si può rimandare.
 6. **Pronto**: riepilogo e "Scegli il primo file".
 
 Si può saltare in qualsiasi momento e rifare da Impostazioni → **Configurazione guidata**. Chi aveva già collegato
@@ -74,9 +75,27 @@ chapters/001.mp3   audio dei capitoli convertiti (48 kbps, circa 21 MB per ora)
 `kind` distingue `libro`, `documentazione`, `articolo` e `notiziario`. Per articoli e notizie viene letto solo il
 testo; titolo, fonte, link e date restano in `book.json` (campo `meta` di ogni capitolo).
 
-## Turso
+## Turso e app di ascolto
 
-Il piano gratuito di Turso ha 5 GB, cioè circa 25–30 libri da 8 ore. Configurazione una tantum:
+Gli audio si ascoltano sul telefono: Grillo li carica sul tuo database Turso e le app di ascolto li scaricano
+da lì. Il piano gratuito di Turso ha 5 GB, cioè circa 25–30 libri da 8 ore.
+
+### Strada guidata (consigliata)
+
+1. Crea un account gratuito su [turso.tech](https://app.turso.tech).
+2. Nella dashboard, nelle impostazioni, sezione **API Tokens**, crea un *Platform API token* e copialo.
+3. In Grillo (configurazione guidata, passo "Telefono", oppure Impostazioni → Turso) incollalo e premi
+   **Configura**.
+
+Grillo usa la [Platform API](https://docs.turso.tech/api-reference/introduction) di Turso dal processo
+principale (`electron/tursoSetup.ts`): sceglie l'organizzazione (se sono più d'una te la fa scegliere), usa il
+primo gruppo esistente o ne crea uno in Europa, crea il database `grillo` (se c'è già lo riusa: si può ripetere),
+crea una chiave di scrittura e una di sola lettura senza scadenza, le salva, crea le tabelle e prova la
+connessione. Il Platform API token **non viene salvato**: serve solo durante la configurazione.
+
+### Strada avanzata (CLI)
+
+Se hai già un database, o preferisci la CLI:
 
 ```bash
 turso db create grillo
@@ -85,16 +104,25 @@ turso db tokens create grillo
 turso db tokens create grillo --read-only
 ```
 
-Nel pannello apri le **Impostazioni** (ingranaggio) e inserisci indirizzo, token di scrittura (resta sul Mac) e
-token di sola lettura (da dare alle PWA). Schema delle tabelle in `shared/turso.ts`. Con l'indirizzo della
-PWA compilato, nelle Impostazioni compare il **QR** che collega il telefono.
+Poi in Impostazioni → Turso apri **Configurazione avanzata** e inserisci indirizzo, chiave di scrittura (resta
+sul Mac) e chiave di sola lettura (va alle app del telefono). Schema delle tabelle in `shared/turso.ts`.
 
-## App per il telefono (PWA)
+### App di ascolto e QR
 
-L'app di ascolto per il telefono ora vive in un repository a parte:
-[stefanocerri/ilmatta](https://github.com/stefanocerri/ilmatta). Legge da Turso con il token di sola lettura;
-dopo averla pubblicata (per esempio su Vercel) incolla il suo indirizzo nelle Impostazioni dell'app Mac.
-Il client Turso è copiato lì da `shared/turso.ts`: se cambi lo schema, aggiornalo in entrambi.
+Le app per il telefono vivono in repository separati: [ilmatta](https://github.com/stefanocerri/ilmatta)
+(audiolibri) e [fomo](https://github.com/stefanocerri/fomo). Dopo averle pubblicate (per esempio su Vercel),
+inserisci il loro indirizzo in Impostazioni → **App di ascolto**: per ognuna compare il suo QR, che apre
+quell'app già collegata. Il link ha questo formato, letto da ilmatta in `src/lib/config.ts`:
+
+```text
+<indirizzo-app>/#setup?db=<libsql://...>&token=<chiave di sola lettura>
+```
+
+Tutto sta nel frammento `#`, quindi non arriva mai al server dell'app; nei QR va sempre e solo la chiave di
+sola lettura. I vecchi `settings.json` con un solo `pwaUrl` vengono letti come indirizzo di ilmatta (tranne il
+vecchio predefinito `https://grilloparlante.vercel.app`, che non esiste più).
+
+Il client Turso è copiato in ilmatta da `shared/turso.ts`: se cambi lo schema, aggiornalo in entrambi.
 
 ## Articoli e notiziari in JSON
 

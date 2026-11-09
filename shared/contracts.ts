@@ -97,11 +97,36 @@ export interface TursoSettings {
   url: string;
   /** Resta sul Mac: serve per caricare. */
   writeToken: string;
-  /** Da dare alle PWA: possono solo leggere. Salvato qui solo per averlo a portata di mano. */
+  /** Da dare alle app di ascolto: possono solo leggere. Va nei QR, mai il token di scrittura. */
   readToken: string;
-  /** Indirizzo della PWA di ascolto (es. su Vercel): serve per il QR del telefono. */
-  pwaUrl: string;
+  /** App di ascolto per il telefono (ilmatta, fomo...): una per QR. */
+  apps: ListeningApp[];
 }
+
+export interface ListeningApp {
+  id: string;
+  name: string;
+  /** Dove è pubblicata (es. su Vercel). Vuoto: il QR non compare. */
+  url: string;
+}
+
+export interface AppQr {
+  id: string;
+  name: string;
+  link: string;
+  image: string;
+}
+
+export interface TursoOrgChoice {
+  slug: string;
+  name: string;
+  type: string;
+}
+
+/** Esito di "Configura": fatto, oppure serve scegliere l'organizzazione. */
+export type TursoSetupOutcome =
+  | { status: "choose-org"; orgs: TursoOrgChoice[] }
+  | { status: "done"; message: string };
 
 export interface SyncStatus {
   state: SyncState;

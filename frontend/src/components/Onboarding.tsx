@@ -6,20 +6,18 @@ import {
   Check,
   Cpu,
   Download,
-  ExternalLink,
   HardDrive,
   Pause,
   Play,
-  Smartphone,
   Terminal,
   WifiOff
 } from "lucide-react";
-import { PhoneQr, TursoForm } from "./TursoForm";
+import { AppQrs, TursoSetup, tursoConfigured } from "./TursoForm";
 import { CopyCommand, Mark, Spinner, Step, StatusIcon, type CheckState } from "./ui";
 
 /**
  * Configurazione guidata al primo avvio, pensata per chi non ha mai aperto il Terminale:
- * 1. benvenuto  2. controllo del Mac (e Python)  3. motore voce  4. voce  5. telefono (facoltativo)  6. fatto.
+ * 1. benvenuto  2. controllo del Mac (e Python)  3. motore voce  4. voce  5. app sul telefono (Turso + QR)  6. fatto.
  * Si può saltare in qualsiasi momento; si rifà dalle Impostazioni.
  */
 const STEPS = ["Benvenuto", "Il tuo Mac", "Motore voce", "Voce", "Telefono", "Pronto"] as const;
@@ -78,14 +76,16 @@ export function Onboarding({ snapshot, onPickFile }: { snapshot: AppSnapshot; on
       footer = <Nav onBack={back} onNext={next} />;
       break;
     case 4:
-      content = <PhoneSetup snapshot={snapshot} system={system} />;
+      content = <PhoneSetup snapshot={snapshot} />;
       footer = (
-        <Nav
-          onBack={back}
-          onNext={next}
-          nextLabel={snapshot.sync.state === "off" ? "Salta per ora" : "Continua"}
-          nextVariant={snapshot.sync.state === "off" ? "secondary" : "primary"}
-        />
+        <div className="space-y-1.5">
+          <Nav onBack={back} onNext={next} nextDisabled={!tursoConfigured(snapshot)} />
+          {!tursoConfigured(snapshot) && (
+            <button className="btn-ghost btn-sm w-full" onClick={next}>
+              Lo faccio più tardi
+            </button>
+          )}
+        </div>
       );
       break;
     default:
@@ -191,7 +191,7 @@ function Welcome() {
   const points: [ReactNode, string, string][] = [
     [<HardDrive size={15} />, "Tutto sul tuo Mac", "La voce viene creata qui, senza abbonamenti e senza mandare i tuoi libri a nessuno."],
     [<Download size={15} />, "Circa 15 minuti, una volta sola", "Quasi tutto è il download del motore voce (circa 5 GB)."],
-    [<WifiOff size={15} />, "Poi anche senza internet", "Internet serve solo adesso e, se vuoi, per mandare l'audio al telefono."]
+    [<WifiOff size={15} />, "Poi anche senza internet", "La voce si crea sul Mac senza internet; serve solo per mandare gli audio al telefono."]
   ];
   return (
     <div className="flex flex-col">
@@ -512,86 +512,33 @@ function VoicePick({ snapshot }: { snapshot: AppSnapshot }) {
   );
 }
 
-// --- 5. Telefono (facoltativo) ------------------------------------------------
+// --- 5. Telefono --------------------------------------------------------------
 
-function PhoneSetup({ snapshot, system }: { snapshot: AppSnapshot; system: SystemCheck | null }) {
-  const connected = snapshot.sync.state !== "off";
-  const [open, setOpen] = useState(connected);
-  const bin = system ? brewBin(system).replace(/\/brew$/, "") : "/opt/homebrew/bin";
-
-  if (!open) {
-    return (
-      <>
-        <Title title="Ascoltare anche sul telefono?">
-          È facoltativo. Gli audio vengono caricati sul tuo database gratuito Turso e li ascolti dall'app per il
-          telefono, anche offline. Ci vogliono circa 5 minuti.
-        </Title>
-        <button className="card row-hover flex w-full items-center gap-3 p-3 text-left" onClick={() => setOpen(true)}>
-          <Smartphone size={16} className="text-mute" />
-          <div className="flex-1">
-            <p className="text-sm font-medium">Sì, configuriamolo</p>
-            <p className="text-xs text-mute">Ti servono un account Turso e il Terminale.</p>
-          </div>
-          <ArrowRight size={14} className="text-faint" />
-        </button>
-        <p className="mt-3 text-xs text-mute">Altrimenti premi «Salta per ora»: potrai farlo dalle Impostazioni.</p>
-      </>
-    );
-  }
-
+/** L'ascolto avviene sul telefono: qui si collega Turso e si scaricano le app di ascolto con i QR. */
+function PhoneSetup({ snapshot }: { snapshot: AppSnapshot }) {
+  const connected = tursoConfigured(snapshot);
   return (
     <>
-      <Title title="Colleghiamo il telefono" />
-      {connected ? (
-        <div className="space-y-3">
-          <div className="card flex items-center gap-3 p-3">
-            <StatusIcon state="ok" />
-            <p className="text-sm">Turso collegato</p>
-          </div>
-          <div className="card p-3">
-            <PhoneQr snapshot={snapshot} />
-          </div>
-        </div>
-      ) : (
-        <ol>
-          <Step n={1} title="Crea un account gratuito su Turso">
-            <a className="btn-secondary btn-sm" href="https://app.turso.tech/signup" target="_blank" rel="noreferrer">
-              Apri turso.tech <ExternalLink size={12} />
-            </a>
-          </Step>
-          <Step n={2} title="Nel Terminale installa Turso ed entra con il tuo account">
-            <button className="btn-secondary btn-sm" onClick={() => void window.grillo.openTerminal()}>
-              <Terminal size={13} /> Apri il Terminale
-            </button>
-            {system && !system.homebrew.ok && (
-              <CopyCommand command={'/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'} />
-            )}
-            <CopyCommand command={`${bin}/brew install tursodatabase/tap/turso`} />
-            <CopyCommand command={`${bin}/turso auth login`} />
-          </Step>
-          <Step n={3} title="Crea il database">
-            <CopyCommand command={`${bin}/turso db create grillo`} />
-          </Step>
-          <Step n={4} title="Copia qui sotto quello che stampano questi tre comandi">
-            <CommandFor label="Indirizzo del database" command={`${bin}/turso db show grillo --url`} />
-            <CommandFor label="Chiave di scrittura" command={`${bin}/turso db tokens create grillo`} />
-            <CommandFor label="Chiave di sola lettura" command={`${bin}/turso db tokens create grillo --read-only`} />
-          </Step>
-          <Step n={5} title="Incolla e prova">
-            <TursoForm snapshot={snapshot} showPwaUrl={false} />
-          </Step>
-        </ol>
-      )}
+      <Title title="Scarica l'app sul telefono">
+        Gli audiolibri si ascoltano sul telefono, anche offline. Grillo li carica sul tuo database gratuito Turso e
+        l'app di ascolto li scarica da lì.
+      </Title>
+      <ol>
+        <Step n={1} title={connected ? "Turso è collegato" : "Collega Turso"}>
+          {connected ? (
+            <div className="card flex items-center gap-2.5 px-3 py-2">
+              <StatusIcon state="ok" />
+              <p className="min-w-0 flex-1 truncate font-mono text-2xs text-mute">{snapshot.turso.url}</p>
+            </div>
+          ) : (
+            <TursoSetup />
+          )}
+        </Step>
+        <Step n={2} title="Inquadra il QR e installa l'app">
+          <AppQrs snapshot={snapshot} />
+        </Step>
+      </ol>
     </>
-  );
-}
-
-function CommandFor({ label, command }: { label: string; command: string }) {
-  return (
-    <div className="space-y-1">
-      <p className="text-2xs text-mute">{label}</p>
-      <CopyCommand command={command} />
-    </div>
   );
 }
 
@@ -601,7 +548,7 @@ function Done({ snapshot }: { snapshot: AppSnapshot }) {
   const rows: [string, boolean][] = [
     ["Motore voce", snapshot.runtime.state === "ready"],
     ["Voce scelta", true],
-    ["Telefono", snapshot.sync.state !== "off"]
+    ["App sul telefono", tursoConfigured(snapshot)]
   ];
   return (
     <>
@@ -617,7 +564,7 @@ function Done({ snapshot }: { snapshot: AppSnapshot }) {
           <li key={label} className="flex items-center gap-3 px-3 py-2.5">
             <StatusIcon state={ok ? "ok" : "warn"} />
             <p className="flex-1 text-sm">{label}</p>
-            <span className="text-xs text-mute">{ok ? "fatto" : label === "Telefono" ? "più tardi" : "da fare"}</span>
+            <span className="text-xs text-mute">{ok ? "fatto" : label === "App sul telefono" ? "dalle Impostazioni" : "da fare"}</span>
           </li>
         ))}
       </ul>
