@@ -3,7 +3,7 @@
 ```
 PDF/EPUB/TXT/JSON ──► [app Mac: barra dei menu] ──► backend Python (OmniVoice) ──► ~/Documents/Grillo Parlante/books/<id>/
                               │                                                       book.json · cover · text/ · chapters/*.mp3
-                              └── capitolo pronto ──► Turso (books, chapter_audio) ──► PWA di ascolto (pwa/)
+                              └── capitolo pronto ──► Turso (books, chapter_audio) ──► PWA di ascolto (repo ilmatta)
 ```
 
 ## Processi
@@ -44,7 +44,7 @@ capitolo risulta `ready` solo quando tutti i suoi pezzi audio sono già su Turso
 
 ## Contratto con le app di ascolto
 
-Le PWA (quella in `pwa/` o altre con lo stesso schema) leggono da Turso la colonna `books.json`, cioè il `book.json`. Campi utili:
+Le PWA ([ilmatta](https://github.com/stefanocerri/ilmatta) o altre con lo stesso schema) leggono da Turso la colonna `books.json`, cioè il `book.json`. Campi utili:
 `kind`, `title`, `author`, `cover`, `publishedAt`, `expiresAt` e, per ogni capitolo, `title`, `status`,
 `duration`, `size`, `parts` e `meta` (sezione, fonte, link, data). I tipi sono in `shared/contracts.ts`.
 Per tipo: `SELECT json FROM books WHERE json_extract(json, '$.kind') = 'notiziario'`.
