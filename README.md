@@ -71,7 +71,9 @@ PWA compilato, nelle Impostazioni compare il **QR** che collega il telefono.
 L'app di ascolto per il telefono ora vive in un repository a parte:
 [stefanocerri/ilmatta](https://github.com/stefanocerri/ilmatta). Legge da Turso con il token di sola lettura;
 dopo averla pubblicata (per esempio su Vercel) incolla il suo indirizzo nelle Impostazioni dell'app Mac.
-Il client Turso è copiato lì da `shared/turso.ts`: se cambi lo schema, aggiornalo in entrambi.
+Il client Turso è copiato lì da `shared/turso.ts`: se cambi lo schema, aggiornalo in entrambi. In ilmatta
+`npm run check:turso` (che gira anche ogni giorno su GitHub Actions) segnala quando le due copie divergono
+rispetto al branch `develop`.
 
 ## Articoli e notiziari in JSON
 
