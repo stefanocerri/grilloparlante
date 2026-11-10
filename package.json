@@ -13,7 +13,8 @@
     "build:renderer": "vite build --config frontend/vite.config.ts",
     "build:main": "tsc -p electron/tsconfig.json",
     "lint": "tsc --noEmit -p frontend/tsconfig.json && tsc --noEmit -p electron/tsconfig.json",
-    "preview": "vite preview --config frontend/vite.config.ts"
+    "preview": "vite preview --config frontend/vite.config.ts",
+    "build:mac": "npm run build:renderer && npm run build:main && electron-builder --mac --publish never"
   },
   "build": {
     "appId": "studio.minddimension.grilloparlante",
@@ -40,14 +41,31 @@
     ],
     "mac": {
       "target": [
-        "zip",
-        "dmg"
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
       ],
       "category": "public.app-category.productivity",
       "extendInfo": {
         "LSUIElement": true
-      }
-    }
+      },
+      "icon": "assets/icon.png"
+    },
+    "dmg": {
+      "title": "Grillo parlante"
+    },
+    "artifactName": "Grillo-parlante-${version}-${arch}.${ext}"
   },
   "dependencies": {
     "lucide-react": "^0.511.0",

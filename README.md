@@ -146,8 +146,19 @@ aggiungerne una basta un campione pulito di 10–20 secondi più la riga corrisp
 
 ## Build
 
+**Senza Terminale**: su GitHub apri Actions → **App per Mac** → *Run workflow*. Dopo circa 10 minuti, in
+Releases compare una versione con `Grillo-parlante-<versione>-arm64.dmg` (chip Apple) e `-x64.dmg` (Intel).
+Con un tag `v*` la release diventa definitiva.
+
+**Sul tuo Mac**:
+
 ```bash
-npm run build
+npm run build:mac
 ```
 
-Genera l'app macOS in `release/`. Dettagli tecnici in [docs/architecture.md](docs/architecture.md).
+Genera in `release/` il `.dmg` e lo `.zip` per chip Apple e Intel. L'app non è firmata con un certificato Apple:
+al primo avvio aprila con tasto destro → **Apri**. Se macOS dice che è danneggiata (succede ai file scaricati),
+nel Terminale: `xattr -dr com.apple.quarantine "/Applications/Grillo parlante.app"`.
+
+Icona dell'app: `assets/icon.svg` (sorgente) e `assets/icon.png` (1024 px). Per provare tutto c'è un PDF breve
+con tre capitoli: `backend/examples/il-grillo-e-la-lanterna.pdf`. Dettagli tecnici in [docs/architecture.md](docs/architecture.md).
