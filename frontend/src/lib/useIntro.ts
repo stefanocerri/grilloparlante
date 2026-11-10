@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import introUrl from "../assets/intro.m4a";
 
 const PLAYED = "introPlayed";
+/** Volume del saluto (1 = come il file): a metà, per non spaventare all'apertura. */
+const VOLUME = 0.5;
 let audio: HTMLAudioElement | null = null;
 let starting = false;
 
@@ -27,6 +29,7 @@ export function useIntro(onboarded: boolean | undefined) {
       if (starting || localStorage.getItem(PLAYED) || document.visibilityState !== "visible") return;
       starting = true;
       audio ??= new Audio(introUrl);
+      audio.volume = VOLUME;
       audio.currentTime = 0;
       audio
         .play()
