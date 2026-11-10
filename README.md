@@ -7,7 +7,7 @@ file sull'icona per importarlo, tasto destro per uscire. Mentre converte, accant
 
 1. **Importa** un PDF, un EPUB, un testo (TXT/MD) o un articolo/notiziario in JSON: l'app estrae il testo e
    divide i capitoli (segnalibri del PDF, indice dell'EPUB, oppure un capitolo per articolo).
-2. **Scegli la voce** tra quattro voci italiane: Marco, Paolo, Giulia e Anna.
+2. **Scegli la voce** tra le voci italiane incluse (Marco e Anna) o tra quelle che crei tu.
 3. **Converti** quando vuoi: un capitolo, "fino al capitolo N" o tutto. Se chiudi l'app, la conversione
    riparte da dove era rimasta.
 4. **Ascolta sul telefono**: ogni capitolo pronto viene caricato sul tuo database Turso e le app di ascolto
@@ -45,7 +45,7 @@ Al primo avvio il pannello apre una guida in sei passi, pensata per chi non ha m
 2. **Il tuo Mac**: controlla da sola processore, spazio libero (ne servono circa 8 GB) e Python. Se Python manca,
    mostra i comandi da copiare (Homebrew e poi `python@3.12`) con il pulsante per aprire il Terminale e "Ricontrolla".
 3. **Narratore**: installa OmniVoice con la barra di avanzamento; se qualcosa va storto mostra i dettagli e "Riprova".
-4. **Voce**: anteprime delle quattro voci; quella scelta diventa la predefinita.
+4. **Voce**: anteprime delle voci incluse; quella scelta diventa la predefinita.
 5. **Telefono**: incolli un solo Platform API token di Turso, premi "Configura" e Grillo crea database e
    chiavi; poi un QR per ogni app di ascolto da installare sul telefono. Si può rimandare.
 6. **Pronto**: riepilogo e "Scegli il primo file".
@@ -74,7 +74,7 @@ La copia sul Mac sta in `~/Documents/Grillo Parlante/books/<id>/` (testo in `tex
 
 ## Voci da un campione
 
-Oltre alle quattro voci incluse puoi crearne di nuove: Impostazioni → **Voci** → "Nuova voce da un campione", oppure
+Oltre alle voci incluse puoi crearne di nuove: Impostazioni → **Voci** → "Nuova voce da un campione", oppure
 il riquadro "Nuova voce" quando scegli la voce di un libro. Carichi un audio di 10–30 secondi con una sola persona
 che parla (WAV, MP3, M4A, FLAC), le dai un nome e Grillo la clona con OmniVoice e crea un'anteprima. La
 trascrizione è facoltativa: se manca la ricava Whisper (scaricato la prima volta, circa 1,6 GB). Le voci create
