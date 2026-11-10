@@ -147,7 +147,7 @@ aggiungerne una basta un campione pulito di 10–20 secondi più la riga corrisp
 ## Build
 
 **Senza Terminale**: su GitHub apri Actions → **App per Mac** → *Run workflow*. Dopo circa 10 minuti, in
-Releases compare una versione con `Grillo-parlante-<versione>-arm64.dmg` (chip Apple) e `-x64.dmg` (Intel).
+Releases compare `Grillo-parlante-<versione>-arm64.dmg` (Mac con chip Apple).
 Con un tag `v*` la release diventa definitiva.
 
 **Sul tuo Mac**:
@@ -156,7 +156,9 @@ Con un tag `v*` la release diventa definitiva.
 npm run build:mac
 ```
 
-Genera in `release/` il `.dmg` e lo `.zip` per chip Apple e Intel. L'app non è firmata con un certificato Apple:
+Genera in `release/` il `.dmg` e lo `.zip` per i Mac con chip Apple (l'app è in `release/mac-arm64/`). Per un
+Mac Intel: `npm run build:mac:intel` (finisce in `release/mac/`; su un Mac con chip Apple girerebbe con Rosetta e
+macOS avvisa che le app Intel non saranno più supportate). L'app non è firmata con un certificato Apple:
 al primo avvio aprila con tasto destro → **Apri**. Se macOS dice che è danneggiata (succede ai file scaricati),
 nel Terminale: `xattr -dr com.apple.quarantine "/Applications/Grillo parlante.app"`.
 

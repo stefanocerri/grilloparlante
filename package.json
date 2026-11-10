@@ -14,7 +14,8 @@
     "build:main": "tsc -p electron/tsconfig.json",
     "lint": "tsc --noEmit -p frontend/tsconfig.json && tsc --noEmit -p electron/tsconfig.json",
     "preview": "vite preview --config frontend/vite.config.ts",
-    "build:mac": "npm run build:renderer && npm run build:main && electron-builder --mac --publish never"
+    "build:mac": "npm run build:renderer && npm run build:main && electron-builder --mac --publish never",
+    "build:mac:intel": "npm run build:renderer && npm run build:main && electron-builder --mac --x64 --publish never"
   },
   "build": {
     "appId": "studio.minddimension.grilloparlante",
@@ -44,15 +45,13 @@
         {
           "target": "dmg",
           "arch": [
-            "arm64",
-            "x64"
+            "arm64"
           ]
         },
         {
           "target": "zip",
           "arch": [
-            "arm64",
-            "x64"
+            "arm64"
           ]
         }
       ],

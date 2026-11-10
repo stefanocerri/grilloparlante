@@ -1,4 +1,4 @@
-# Crea l'app per Mac (.dmg e .zip, chip Apple e Intel) e la pubblica come release su GitHub.
+# Crea l'app per Mac con chip Apple (.dmg e .zip) e la pubblica come release su GitHub.
 # Si avvia a mano da Actions → "App per Mac" → Run workflow, oppure con un tag v*.
 name: App per Mac
 
