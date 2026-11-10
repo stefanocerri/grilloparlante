@@ -1,19 +1,10 @@
 import { lazy, Suspense, useState, type ReactNode } from "react";
 import { Check, Copy, Loader2, X } from "lucide-react";
+import iconUrl from "../../../assets/icon.svg";
 
-/** Logo: fumetto con onda sonora, come l'icona dell'app (assets/icon.svg) e quella nella barra dei menu. */
-export function Mark({ size = 20 }: { size?: number }) {
-  return (
-    <span
-      className="inline-flex shrink-0 items-center justify-center rounded-[22%] bg-ink text-bg"
-      style={{ width: size, height: size }}
-    >
-      <svg viewBox="200 260 624 560" width={Math.round(size * 0.6)} height={Math.round(size * 0.6)} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M330 300 h364 a70 70 0 0 1 70 70 v220 a70 70 0 0 1 -70 70 h-214 l-122 96 v-96 h-28 a70 70 0 0 1 -70 -70 v-220 a70 70 0 0 1 70 -70 z" strokeWidth="52" />
-        <path d="M412 440 v80 M476 400 v160 M548 418 v124 M612 452 v56" strokeWidth="48" />
-      </svg>
-    </span>
-  );
+/** Logo: il grillo dell'icona dell'app (assets/icon.svg), lo stesso disegnato sul modello 3D. */
+export function Mark({ size = 26 }: { size?: number }) {
+  return <img src={iconUrl} alt="" draggable={false} className="shrink-0" style={{ width: size, height: size }} />;
 }
 
 export function Spinner({ size = 14, className = "" }: { size?: number; className?: string }) {

@@ -1,18 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- Icona dell'app: fumetto con onda sonora (come l'icona nella barra dei menu), su quadrato scuro in stile macOS. -->
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2a2a2a"/>
-      <stop offset="1" stop-color="#0a0a0a"/>
-    </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
-      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity="0.35"/>
-    </filter>
-  </defs>
-  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)" filter="url(#shadow)"/>
-  <rect x="100.5" y="100.5" width="823" height="823" rx="184.5" fill="none" stroke="#fff" stroke-opacity="0.12"/>
-  <g transform="translate(512 512) scale(0.8) translate(-512 -515)" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M330 300 h364 a70 70 0 0 1 70 70 v220 a70 70 0 0 1 -70 70 h-214 l-122 96 v-96 h-28 a70 70 0 0 1 -70 -70 v-220 a70 70 0 0 1 70 -70 z" stroke-width="44"/>
-    <path d="M412 440 v80 M476 400 v160 M548 418 v124 M612 452 v56" stroke-width="40"/>
+  <!-- Icona e logo dell'app: il grillo disegnato sul pannello del modello 3D (scripts/model/scene.js), scontornato. -->
+  <g transform="translate(512 602) scale(590)" stroke="#14532d" stroke-width="0.05" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M-0.14 0.2 L-0.5 -0.08 L-0.44 0.52 M0.14 0.2 L0.5 -0.08 L0.44 0.52"/>
+    <ellipse cx="-0.5" cy="0.55" rx="0.13" ry="0.06" fill="#e2342c"/>
+    <ellipse cx="0.5" cy="0.55" rx="0.13" ry="0.06" fill="#e2342c"/>
+    <path d="M-0.2 0.02 Q-0.5 -0.05 -0.56 -0.32 M0.2 0.02 Q0.42 0.14 0.6 0.02"/>
+    <ellipse cx="0" cy="0.14" rx="0.24" ry="0.32" fill="#f8fafc"/>
+    <ellipse cx="0" cy="0.2" rx="0.13" ry="0.22" fill="#3db54a" stroke="none"/>
+    <path d="M-0.1 -0.52 Q-0.22 -0.9 -0.48 -0.84 M0.1 -0.52 Q0.22 -0.9 0.48 -0.84"/>
+    <ellipse cx="0" cy="-0.36" rx="0.3" ry="0.25" fill="#4cc15a"/>
+    <ellipse cx="-0.11" cy="-0.41" rx="0.09" ry="0.11" fill="#fff"/>
+    <ellipse cx="0.11" cy="-0.41" rx="0.09" ry="0.11" fill="#fff"/>
+    <circle cx="-0.09" cy="-0.39" r="0.04" fill="#111" stroke="none"/>
+    <circle cx="0.13" cy="-0.39" r="0.04" fill="#111" stroke="none"/>
+    <path d="M0.092 -0.208 A0.13 0.13 0 0 1 -0.092 -0.208"/>
   </g>
 </svg>
