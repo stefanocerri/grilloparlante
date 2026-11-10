@@ -74,6 +74,9 @@ export type SyncState = "off" | "idle" | "uploading" | "error";
 export interface BookView extends Book {
   coverUrl?: string;
   chapterUrls: Record<number, string>;
+  /** Canali (app) a cui è destinato; sul Mac resta sempre. */
+  targets: string[];
+  /** Capitoli già caricati su tutte le destinazioni. */
   uploadedChapters: number[];
   queuedChapters: number[];
 }
@@ -112,21 +115,41 @@ export interface RuntimeStatus {
   installHint?: string;
 }
 
-export interface TursoSettings {
+/** Database Turso di un canale. */
+export interface ChannelDb {
+  /** Nome su Turso (es. grillo-ilmatta). */
+  name: string;
   url: string;
-  /** Resta sul Mac: serve per caricare. */
-  writeToken: string;
-  /** Da dare alle app di ascolto: possono solo leggere. Va nei QR, mai il token di scrittura. */
-  readToken: string;
-  /** App di ascolto per il telefono (ilmatta, fomo...): una per QR. */
-  apps: ListeningApp[];
+  /** Chiave completa usata da Grillo: resta sul Mac. */
+  token: string;
+  /** Chiave che va all'app tramite il QR. */
+  appToken: string;
+  /** false se appToken è di sola lettura (collegamenti di prima): l'app non può mandare file a Grillo. */
+  appCanWrite: boolean;
 }
 
-export interface ListeningApp {
+/** Un'app di ascolto collegata a Grillo ("canale"): ha il suo database e riceve solo i libri destinati a lei. */
+export interface Channel {
   id: string;
   name: string;
-  /** Dove è pubblicata (es. su Vercel). Vuoto: il QR non compare. */
-  url: string;
+  /** Dove è pubblicata l'app (es. https://ilmatta.vercel.app): serve per il QR. */
+  appUrl: string;
+  db: ChannelDb | null;
+}
+
+export interface ChannelView extends Channel {
+  sync: SyncStatus;
+}
+
+/** File mandato a Grillo da un'app (casella "requests" del suo database). */
+export interface InboxItem {
+  channelId: string;
+  channelName: string;
+  requestId: string;
+  fileName: string;
+  status: string;
+  bookId?: string;
+  message?: string;
 }
 
 export interface AppQr {
@@ -178,8 +201,10 @@ export interface AppSnapshot {
   voiceJob: VoiceJob | null;
   books: BookView[];
   queue: QueueState;
-  turso: TursoSettings;
-  sync: SyncStatus;
+  channels: ChannelView[];
+  /** File arrivati dalle app e non ancora finiti. */
+  inbox: InboxItem[];
+  defaultVoiceId: string | null;
   libraryDir: string;
 }
 
@@ -189,4 +214,6 @@ export interface ImportRequest {
   speed: number;
   /** Dopo l'importazione mette subito in coda tutti i capitoli. */
   convertAll?: boolean;
+  /** Canali a cui mandarlo (oltre al Mac, dove resta sempre). */
+  targets?: string[];
 }

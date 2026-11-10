@@ -85,55 +85,42 @@ chapters/001.mp3   audio dei capitoli convertiti (48 kbps, circa 21 MB per ora)
 `kind` distingue `libro`, `documentazione`, `articolo` e `notiziario`. Per articoli e notizie viene letto solo il
 testo; titolo, fonte, link e date restano in `book.json` (campo `meta` di ogni capitolo).
 
-## Turso e app di ascolto
+## App collegate (canali)
 
-Gli audio si ascoltano sul telefono: Grillo li carica sul tuo database Turso e le app di ascolto li scaricano
-da lì. Il piano gratuito di Turso ha 5 GB, cioè circa 25–30 libri da 8 ore.
+I libri restano **sempre sul Mac**, in `~/Documents/Grillo Parlante/books/` (una cartella per libro). In più puoi
+mandarli alle app di ascolto per il telefono: ogni app collegata è un **canale** con il suo database gratuito su
+Turso, e riceve solo i libri destinati a lei. Le destinazioni si scelgono quando importi un file ("Dove lo ascolti")
+e si cambiano dalla scheda del libro; togliere un'app toglie il libro dal suo database, non dal Mac.
 
-### Strada guidata (consigliata)
+Predefinite: [ilmatta](https://github.com/stefanocerri/ilmatta) (`https://ilmatta.vercel.app`) e
+[fomo](https://github.com/stefanocerri/fomo) (`https://fomo.vercel.app`). Altre si aggiungono da Impostazioni →
+App collegate; per crearne una nuova si parte dal guscio [skal](https://github.com/stefanocerri/skal).
 
-1. Crea un account gratuito su [turso.tech](https://app.turso.tech).
-2. Nella dashboard, nelle impostazioni, sezione **API Tokens**, crea un *Platform API token* e copialo.
-3. In Grillo (configurazione guidata, passo "Telefono", oppure Impostazioni → Turso) incollalo e premi
-   **Configura**.
+### Collegare un'app
 
-Grillo usa la [Platform API](https://docs.turso.tech/api-reference/introduction) di Turso dal processo
-principale (`electron/tursoSetup.ts`): sceglie l'organizzazione (se sono più d'una te la fa scegliere), usa il
-primo gruppo esistente o ne crea uno in Europa, crea il database `grillo` (se c'è già lo riusa: si può ripetere),
-crea una chiave di scrittura e una di sola lettura senza scadenza, le salva, crea le tabelle e prova la
-connessione. Il Platform API token **non viene salvato**: serve solo durante la configurazione.
+1. Crea un account gratuito su [turso.tech](https://app.turso.tech) e, nelle impostazioni della dashboard
+   (sezione **API Tokens**), un *Platform API token*.
+2. In Grillo (guida, passo "Telefono", oppure Impostazioni → App collegate) incollalo e premi **Collega**.
+3. Inquadra il QR dell'app con il telefono e installala (Condividi → Aggiungi alla schermata Home).
 
-### Strada avanzata (CLI)
+Per ogni app Grillo crea (o riusa) il database `grillo-<app>` con la
+[Platform API](https://docs.turso.tech/api-reference/introduction) (`electron/tursoSetup.ts`) e due chiavi
+complete senza scadenza: una resta sul Mac, l'altra va all'app nel QR. Il Platform API token resta **solo in
+memoria** finché Grillo è aperto (così colleghi più app con un clic), mai su disco. Il QR ha il formato
+`<app>/#setup?db=<libsql://...>&token=<chiave app>&channel=<id>&name=<nome>`, tutto nel frammento `#`.
 
-Se hai già un database, o preferisci la CLI:
+Chi ha già un database può usare "Configurazione avanzata" (indirizzo e chiavi a mano). Chi usava la versione con
+un database unico se lo ritrova come canale ilmatta, con i libri già destinati a ilmatta: niente da ricaricare;
+dato che allora l'app aveva una chiave di sola lettura, per mandare file dal telefono va ricollegata.
 
-```bash
-turso db create grillo
-turso db show grillo --url
-turso db tokens create grillo
-turso db tokens create grillo --read-only
-```
+### Dal telefono a Grillo
 
-Poi in Impostazioni → Turso apri **Configurazione avanzata** e inserisci indirizzo, chiave di scrittura (resta
-sul Mac) e chiave di sola lettura (va alle app del telefono). Schema delle tabelle in `shared/turso.ts`.
+Nel database di ogni app Grillo scrive il suo stato ogni 30 secondi (`grillo_status`): l'app mostra un semaforo
+(verde = pronto, giallo = sta convertendo o manca il narratore, rosso = Mac spento o Grillo chiuso). L'app può
+caricare un PDF/EPUB nella casella `requests`; Grillo lo importa, scrive l'elenco dei capitoli, l'app (o il Mac)
+sceglie quali convertire, e il libro arriva solo a quell'app. Protocollo e tabelle in `shared/channel.ts`.
 
-### App di ascolto e QR
-
-Le app per il telefono vivono in repository separati: [ilmatta](https://github.com/stefanocerri/ilmatta)
-(audiolibri) e [fomo](https://github.com/stefanocerri/fomo), pubblicate su
-[ilmatta.vercel.app](https://ilmatta.vercel.app) e [fomo.vercel.app](https://fomo.vercel.app). Sono gli indirizzi
-predefiniti: appena Turso è configurato, in Impostazioni → **App di ascolto** compare un QR per ognuna, che apre
-quell'app già collegata. Gli indirizzi si possono cambiare lì (campo vuoto = torna al predefinito). Il link ha questo formato, letto da ilmatta in `src/lib/config.ts`:
-
-```text
-<indirizzo-app>/#setup?db=<libsql://...>&token=<chiave di sola lettura>
-```
-
-Tutto sta nel frammento `#`, quindi non arriva mai al server dell'app; nei QR va sempre e solo la chiave di
-sola lettura. I vecchi `settings.json` con un solo `pwaUrl` vengono letti come indirizzo di ilmatta (tranne il
-vecchio predefinito `https://grilloparlante.vercel.app`, che non esiste più).
-
-Il client Turso è copiato in ilmatta da `shared/turso.ts`: se cambi lo schema, aggiornalo in entrambi.
+Il piano gratuito di Turso ha 5 GB in tutto (condivisi tra i database), cioè circa 25–30 libri da 8 ore.
 
 ## Articoli e notiziari in JSON
 

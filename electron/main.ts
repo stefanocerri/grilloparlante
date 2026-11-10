@@ -3,14 +3,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
 import QRCode from "qrcode";
-import type { AppQr, AppSnapshot, ThemeChoice, VoiceCreateRequest, ImportRequest, ListeningApp, TursoSettings, TursoSetupOutcome, VoiceInfo } from "../shared/contracts";
+import type { AppQr, AppSnapshot, Channel, ImportRequest, ThemeChoice, TursoSetupOutcome, VoiceCreateRequest, VoiceInfo } from "../shared/contracts";
+import { CHANNEL_PROTOCOL_VERSION, type GrilloStatus, type RequestOptions } from "../shared/channel";
+import { ChannelLink, ChannelStore, ChannelSync, channelView } from "./channels";
 import { bookDir, deleteBook, listBooks, readBook, toView } from "./library";
 import { backendRoot, libraryDir, readJson, userDataFile, userVoicesDir, writeJson } from "./paths";
 import { VoiceCreator } from "./voiceCreator";
 import { getPopover, hidePopover, popoverBackground, withPopoverPinned } from "./popover";
 import { ConversionQueue } from "./queue";
 import { RuntimeManager } from "./runtime";
-import { TursoSync } from "./sync";
 import { checkSystem } from "./system";
 import { SetupError, setupLink, setupTurso } from "./tursoSetup";
 import { createTray, updateTray } from "./tray";
@@ -22,36 +23,6 @@ protocol.registerSchemesAsPrivileged([
 const SUPPORTED = new Set([".pdf", ".epub", ".txt", ".md", ".json"]);
 const SYNC_EVERY_MS = 60 * 60 * 1000;
 const settingsFile = () => userDataFile("settings.json");
-/** Le app di ascolto, in repository separati e pubblicate su Vercel. L'indirizzo si può cambiare nelle Impostazioni. */
-const DEFAULT_APPS: ListeningApp[] = [
-  { id: "ilmatta", name: "ilmatta", url: "https://ilmatta.vercel.app" },
-  { id: "fomo", name: "fomo", url: "https://fomo.vercel.app" }
-];
-/** Vecchio indirizzo predefinito, quando la PWA stava in questo repository: non va migrato. */
-const LEGACY_PWA_URL = "https://grilloparlante.vercel.app";
-
-function cleanApps(apps: ListeningApp[] | undefined): ListeningApp[] {
-  // Campo vuoto: torna all'indirizzo predefinito.
-  const list = DEFAULT_APPS.map((app) => ({ ...app, url: apps?.find((item) => item.id === app.id)?.url?.trim() || app.url }));
-  const extra = (apps ?? []).filter((app) => !DEFAULT_APPS.some((item) => item.id === app.id));
-  return [...list, ...extra.map((app) => ({ ...app, url: app.url.trim() }))];
-}
-
-function loadTurso(): TursoSettings {
-  const stored = readJson<{ turso?: Partial<TursoSettings> & { pwaUrl?: string } }>(settingsFile(), {}).turso ?? {};
-  let apps = stored.apps;
-  // settings.json di prima: un solo pwaUrl, che era la PWA ora chiamata ilmatta.
-  if (!apps && stored.pwaUrl && stored.pwaUrl.replace(/\/+$/, "") !== LEGACY_PWA_URL) {
-    apps = [{ id: "ilmatta", name: "ilmatta", url: stored.pwaUrl }];
-  }
-  return {
-    url: stored.url ?? "",
-    writeToken: stored.writeToken ?? "",
-    readToken: stored.readToken ?? "",
-    apps: cleanApps(apps)
-  };
-}
-
 /**
  * Configurazione guidata: chi aveva gia collegato Turso prima che esistesse la consideriamo fatta.
  */
@@ -65,7 +36,6 @@ function saveSettings(patch: Record<string, unknown>) {
   writeJson(settingsFile(), { ...stored, ...patch });
 }
 
-let turso = loadTurso();
 let onboarded = loadOnboarded();
 
 function loadTheme(): ThemeChoice {
@@ -77,13 +47,19 @@ let theme = loadTheme();
 let broadcastTimer: NodeJS.Timeout | null = null;
 
 const runtime = new RuntimeManager(broadcast);
-const sync = new TursoSync(() => turso, broadcast);
+/** Canali (app di ascolto collegate): creati quando l'app è pronta. */
+let store: ChannelStore;
+const syncs = new Map<string, ChannelSync>();
+const links = new Map<string, ChannelLink>();
+/** Platform API token di Turso: solo in memoria finché Grillo è aperto, mai su disco. */
+let platformToken: string | null = null;
+
 const queue = new ConversionQueue({
   python: () => runtime.python,
   onChange: broadcast,
   onBookChanged: (bookId) => {
     broadcast();
-    sync.syncBook(bookId);
+    for (const sync of syncs.values()) sync.syncBook(bookId);
   },
   log: (line) => {
     if (line.trim()) console.log(`[backend] ${line}`);
@@ -109,6 +85,80 @@ function voices(): VoiceInfo[] {
   return [...list(path.join(backendRoot(), "voices"), "voices", false), ...list(userVoicesDir(), "uservoices", true)];
 }
 
+/** Crea o toglie caricamento e battito dei canali, dopo ogni modifica all'elenco. */
+function refreshChannels() {
+  for (const channel of store.channels) {
+    if (syncs.has(channel.id)) continue;
+    const id = channel.id;
+    const sync = new ChannelSync(() => store.get(id), (bookId) => store.targetsOf(bookId).includes(id), broadcast);
+    const link = new ChannelLink(() => store.get(id), sync, {
+      status: grilloStatus,
+      importFile: importForChannel,
+      enqueue: (bookId, chapters) => queue.enqueue(bookId, chapters),
+      queued: (bookId) => {
+        const book = readBook(bookId);
+        const ready = (book?.chapters ?? []).filter((chapter) => chapter.status === "ready").map((chapter) => chapter.index);
+        return [...new Set([...queue.queuedChapters(bookId), ...ready])].sort((a, b) => a - b);
+      },
+      onInboxChange: broadcast,
+      log: (line) => console.log(`[canale] ${line}`)
+    });
+    syncs.set(id, sync);
+    links.set(id, link);
+    sync.syncAll();
+    link.start();
+  }
+  for (const [id, sync] of syncs) {
+    if (store.get(id)) continue;
+    links.get(id)?.stop();
+    sync.dispose();
+    syncs.delete(id);
+    links.delete(id);
+  }
+}
+
+function defaultVoice() {
+  const list = voices();
+  return list.find((voice) => voice.id === store.defaultVoiceId)?.id ?? list[0]?.id ?? null;
+}
+
+/** Stato che le app vedono nel loro database (semaforo, voci disponibili, coda). */
+function grilloStatus(channel: Channel): GrilloStatus {
+  const { running, progress, pending } = queue.state();
+  const title = running ? readBook(running.bookId)?.title ?? null : null;
+  return {
+    version: CHANNEL_PROTOCOL_VERSION,
+    state: runtime.status.state !== "ready" ? "no-narrator" : running || queue.importing ? "busy" : "ready",
+    channel: { id: channel.id, name: channel.name },
+    voices: voices().map((voice) => ({ id: voice.id, name: voice.name, gender: voice.gender })),
+    defaultVoiceId: defaultVoice(),
+    queue: {
+      title,
+      progress: progress?.progress ?? null,
+      pendingChapters: pending.reduce((sum, item) => sum + item.chapters.length, 0)
+    }
+  };
+}
+
+/** File mandato da un'app: importato sul Mac e destinato solo a quell'app. */
+async function importForChannel(filePath: string, options: RequestOptions, channelId: string) {
+  const voiceId = voices().some((voice) => voice.id === options.voiceId) ? options.voiceId! : defaultVoice();
+  if (!voiceId) throw new Error("Nessuna voce disponibile su Grillo.");
+  const bookId = await queue.importBook({ filePath, voiceId, speed: options.speed ?? 1 });
+  store.setTargets(bookId, [channelId]);
+  syncs.get(channelId)?.syncBook(bookId);
+  broadcast();
+  return bookId;
+}
+
+/** Capitoli caricati su tutte le destinazioni del libro (per l'icona nuvola). */
+function uploadedEverywhere(bookId: string) {
+  const targets = store.targetsOf(bookId).filter((id) => store.get(id)?.db);
+  if (!targets.length) return [];
+  const lists = targets.map((id) => new Set(syncs.get(id)?.uploadedChapters(bookId) ?? []));
+  return [...lists[0]].filter((index) => lists.every((list) => list.has(index)));
+}
+
 function snapshot(): AppSnapshot {
   return {
     theme,
@@ -118,14 +168,16 @@ function snapshot(): AppSnapshot {
     voiceJob: voiceCreator.job,
     books: listBooks().map((book) =>
       toView(book, {
-        uploaded: sync.uploadedChapters(book.id),
+        uploaded: uploadedEverywhere(book.id),
+        targets: store.targetsOf(book.id),
         queued: queue.queuedChapters(book.id),
         running: queue.runningChapters(book.id)
       })
     ),
     queue: queue.state(),
-    turso,
-    sync: sync.status,
+    channels: store.channels.map((channel) => channelView(channel, syncs.get(channel.id))),
+    inbox: [...links.values()].flatMap((link) => link.inbox),
+    defaultVoiceId: defaultVoice(),
     libraryDir: libraryDir()
   };
 }
@@ -202,8 +254,11 @@ if (!app.requestSingleInstanceLock()) {
     getPopover();
     createTray({ onFilesDropped: sendDroppedFile, onQuit: () => app.quit() });
     void runtime.refresh();
-    sync.syncAll();
-    setInterval(() => sync.syncAll(), SYNC_EVERY_MS);
+    store = new ChannelStore(settingsFile());
+    refreshChannels();
+    setInterval(() => {
+      for (const sync of syncs.values()) sync.syncAll();
+    }, SYNC_EVERY_MS);
     // themeSource cambia anche prefers-color-scheme nell'interfaccia: il CSS non deve sapere altro.
     nativeTheme.themeSource = theme;
     nativeTheme.on("updated", () => {
@@ -301,6 +356,9 @@ ipcMain.handle("voice:delete", (_event, voiceId: string) => voiceCreator.delete(
 
 ipcMain.handle("book:import", async (_event, request: ImportRequest) => {
   const bookId = await queue.importBook(request);
+  store.defaultVoiceId = request.voiceId;
+  store.setTargets(bookId, request.targets ?? []);
+  for (const sync of syncs.values()) sync.syncBook(bookId);
   if (request.convertAll) {
     const book = readBook(bookId);
     const pending = (book?.chapters ?? []).filter((chapter) => chapter.status !== "ready").map((chapter) => chapter.index);
@@ -321,27 +379,19 @@ ipcMain.handle("book:delete", async (_event, bookId: string) => {
   queue.dequeueBook(bookId);
   deleteBook(bookId);
   broadcast();
-  await sync.deleteBook(bookId).catch(() => undefined);
+  store.forgetBook(bookId);
+  await Promise.all([...syncs.values()].map((sync) => sync.removeRemote(bookId).catch(() => undefined)));
 });
 
-function applyTurso(next: TursoSettings) {
-  const clean: TursoSettings = {
-    url: next.url.trim(),
-    writeToken: next.writeToken.trim(),
-    readToken: next.readToken.trim(),
-    apps: cleanApps(next.apps)
-  };
-  const changedTarget = clean.url !== turso.url || clean.writeToken !== turso.writeToken;
-  turso = clean;
-  saveSettings({ turso });
-  if (changedTarget) sync.reset();
+/** Destinazioni di un libro: i canali aggiunti ricevono il libro, quelli tolti lo perdono (sul Mac resta). */
+ipcMain.handle("book:targets", (_event, bookId: string, targets: string[]) => {
+  store.setTargets(bookId, targets);
+  for (const sync of syncs.values()) sync.syncBook(bookId);
   broadcast();
-}
-
-ipcMain.handle("turso:save", (_event, next: TursoSettings) => applyTurso(next));
+});
 
 /** Un database appena creato può impiegare qualche secondo a rispondere: riprovo un po' prima di arrendermi. */
-async function testWithRetry(attempts = 6): Promise<string> {
+async function testWithRetry(sync: ChannelSync, attempts = 6): Promise<string> {
   for (let attempt = 1; ; attempt += 1) {
     try {
       return await sync.testConnection();
@@ -352,40 +402,91 @@ async function testWithRetry(attempts = 6): Promise<string> {
   }
 }
 
-/**
- * Configurazione guidata con il Platform API token: crea o riusa gruppo e database, salva url e chiavi,
- * crea le tabelle (testConnection) e prova la connessione. Il Platform API token non viene salvato.
- */
-ipcMain.handle("turso:setup", async (_event, platformToken: string, org?: string): Promise<TursoSetupOutcome> => {
-  try {
-    const result = await setupTurso(platformToken, org);
-    if (result.status === "choose-org") return result;
-    applyTurso({ ...turso, url: result.url, writeToken: result.writeToken, readToken: result.readToken });
-    const tested = await testWithRetry().catch((error: Error) => {
-      throw new SetupError(
-        `Il database è pronto, ma la prova di connessione non è riuscita: ${error.message}. Riprova tra un minuto con "Prova la connessione".`
-      );
-    });
-    const created = result.createdDatabase ? "Ho creato il database «grillo»" : "Ho ritrovato il database «grillo»";
-    return { status: "done", message: `${created} (${result.org}). ${tested}` };
-  } catch (error) {
-    if (error instanceof SetupError) throw new Error(error.message);
-    throw new Error(`Configurazione non riuscita: ${(error as Error).message}`);
-  }
+function attachDb(id: string, db: Channel["db"]) {
+  store.update(id, { db });
+  syncs.get(id)?.reset();
+  links.get(id)?.poke();
+  broadcast();
+}
+
+ipcMain.handle("channel:add", (_event, name: string, appUrl: string) => {
+  const channel = store.add(name, appUrl);
+  refreshChannels();
+  broadcast();
+  return channel.id;
 });
 
-ipcMain.handle("turso:test", () => sync.testConnection());
+ipcMain.handle("channel:update", (_event, id: string, patch: { name?: string; appUrl?: string }) => {
+  store.update(id, { name: patch.name, appUrl: patch.appUrl });
+  broadcast();
+});
 
-ipcMain.handle("turso:sync", () => sync.syncAll());
+/** Scollega e toglie l'app da Grillo. Il suo database su Turso resta (si elimina dalla dashboard di Turso). */
+ipcMain.handle("channel:remove", (_event, id: string) => {
+  store.remove(id);
+  refreshChannels();
+  broadcast();
+});
 
-/** Un QR per ogni app di ascolto con un indirizzo: database e chiave di sola lettura nel frammento #, mai al server. */
-ipcMain.handle("turso:qr", async (): Promise<AppQr[]> => {
-  if (!turso.url || !turso.readToken) return [];
-  const apps = turso.apps.filter((app) => app.url);
+ipcMain.handle("channel:has-token", () => Boolean(platformToken));
+
+/**
+ * Collega una o più app: per ognuna crea (o riusa) il database grillo-<id> con la Platform API e due chiavi
+ * complete, una per Grillo e una per l'app. Il Platform API token resta solo in memoria.
+ */
+ipcMain.handle(
+  "channel:connect",
+  async (_event, ids: string[], token?: string, org?: string): Promise<TursoSetupOutcome> => {
+    const useToken = token?.trim() || platformToken;
+    if (!useToken) throw new Error("Serve il Platform API token di Turso.");
+    const done: string[] = [];
+    try {
+      for (const id of ids) {
+        const channel = store.get(id);
+        if (!channel) continue;
+        const result = await setupTurso(useToken, org, { dbName: `grillo-${id}` });
+        if (result.status === "choose-org") return result;
+        platformToken = useToken;
+        attachDb(id, { name: `grillo-${id}`, url: result.url, token: result.writeToken, appToken: result.appToken, appCanWrite: true });
+        await testWithRetry(syncs.get(id)!).catch((error: Error) => {
+          throw new SetupError(
+            `Il database di ${channel.name} è pronto, ma la prova di connessione non è riuscita: ${error.message}. Riprova tra un minuto.`
+          );
+        });
+        done.push(channel.name);
+      }
+      return { status: "done", message: done.length ? `Collegate: ${done.join(", ")}.` : "Niente da collegare." };
+    } catch (error) {
+      if (error instanceof SetupError) throw new Error(error.message);
+      throw new Error(`Collegamento non riuscito: ${(error as Error).message}`);
+    }
+  }
+);
+
+/** Configurazione avanzata: un database che esiste già. */
+ipcMain.handle("channel:manual", async (_event, id: string, db: { url: string; token: string; appToken?: string }) => {
+  const appToken = db.appToken?.trim() || db.token.trim();
+  attachDb(id, { name: "manuale", url: db.url.trim(), token: db.token.trim(), appToken, appCanWrite: appToken === db.token.trim() });
+  return testWithRetry(syncs.get(id)!, 1);
+});
+
+ipcMain.handle("channel:test", (_event, id: string) => {
+  const sync = syncs.get(id);
+  if (!sync) throw new Error("App non trovata.");
+  return sync.testConnection();
+});
+
+ipcMain.handle("channel:sync", () => {
+  for (const sync of syncs.values()) sync.syncAll();
+});
+
+/** Un QR per ogni app collegata con un indirizzo: database e chiave dell'app nel frammento #, mai al server. */
+ipcMain.handle("channel:qr", async (): Promise<AppQr[]> => {
+  const ready = store.channels.filter((channel) => channel.db && channel.appUrl);
   return Promise.all(
-    apps.map(async (app) => {
-      const link = setupLink(app.url, turso.url, turso.readToken);
-      return { id: app.id, name: app.name, link, image: await QRCode.toDataURL(link, { margin: 1, width: 280 }) };
+    ready.map(async (channel) => {
+      const link = setupLink(channel.appUrl, channel.db!.url, channel.db!.appToken, { channel: channel.id, name: channel.name });
+      return { id: channel.id, name: channel.name, link, image: await QRCode.toDataURL(link, { margin: 1, width: 280 }) };
     })
   );
 });

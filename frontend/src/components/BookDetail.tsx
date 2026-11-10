@@ -4,6 +4,7 @@ import { Cloud, ExternalLink, FolderOpen, Loader2, Pause, Play, Trash2 } from "l
 import { formatDuration, formatMinutes } from "../lib/format";
 import { kindOf } from "../lib/kinds";
 import { JobCard } from "./JobCard";
+import { TargetPicker } from "./Channels";
 
 export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snapshot: AppSnapshot; onDeleted: () => void }) {
   const [playing, setPlaying] = useState<number | null>(null);
@@ -20,7 +21,7 @@ export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snap
     () => pending.filter((chapter) => chapter.index <= until).map((chapter) => chapter.index),
     [pending, until]
   );
-  const syncOn = snapshot.sync.state !== "off";
+  const syncOn = book.targets.length > 0;
 
   useEffect(() => {
     setPlaying(null);
@@ -50,7 +51,7 @@ export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snap
   const remove = async () => {
     const ok = await window.grillo.confirm(
       `Eliminare "${book.title}"?`,
-      syncOn ? "Viene tolto dal Mac e da Turso." : "Viene tolto dal Mac."
+      syncOn ? "Viene tolto dal Mac e dalle app a cui l'avevi mandato." : "Viene tolto dal Mac."
     );
     if (!ok) return;
     audio.current?.pause();
@@ -98,6 +99,21 @@ export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snap
           </p>
         </div>
       </header>
+
+      <section className="space-y-2 rounded-lg border border-line bg-subtle p-2.5">
+        <div className="flex items-center gap-2">
+          <p className="label flex-1">Dove si ascolta</p>
+          <button
+            className="flex min-w-0 items-center gap-1 font-mono text-2xs text-faint hover:text-ink"
+            onClick={() => void window.grillo.revealBook(book.id)}
+            title="Copia sul Mac: apri nel Finder"
+          >
+            <FolderOpen size={11} className="shrink-0" />
+            <span className="truncate">…/books/{book.id}</span>
+          </button>
+        </div>
+        <TargetPicker snapshot={snapshot} value={book.targets} onChange={(targets) => void window.grillo.setTargets(book.id, targets)} />
+      </section>
 
       {pending.length > 0 && (
         <div className="flex items-center gap-1.5">

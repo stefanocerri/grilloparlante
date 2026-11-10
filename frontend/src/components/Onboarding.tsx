@@ -12,7 +12,7 @@ import {
   Terminal,
   WifiOff
 } from "lucide-react";
-import { AppQrs, TursoSetup, tursoConfigured } from "./TursoForm";
+import { ChannelList, ConnectChannels, connectedChannels } from "./Channels";
 import { CopyCommand, Mark, Spinner, Step, StatusIcon, type CheckState } from "./ui";
 
 /**
@@ -79,8 +79,8 @@ export function Onboarding({ snapshot, onPickFile }: { snapshot: AppSnapshot; on
       content = <PhoneSetup snapshot={snapshot} />;
       footer = (
         <div className="space-y-1.5">
-          <Nav onBack={back} onNext={next} nextDisabled={!tursoConfigured(snapshot)} />
-          {!tursoConfigured(snapshot) && (
+          <Nav onBack={back} onNext={next} nextDisabled={!connectedChannels(snapshot).length} />
+          {!connectedChannels(snapshot).length && (
             <button className="btn-ghost btn-sm w-full" onClick={next}>
               Lo faccio più tardi
             </button>
@@ -516,26 +516,20 @@ function VoicePick({ snapshot }: { snapshot: AppSnapshot }) {
 
 /** L'ascolto avviene sul telefono: qui si collega Turso e si scaricano le app di ascolto con i QR. */
 function PhoneSetup({ snapshot }: { snapshot: AppSnapshot }) {
-  const connected = tursoConfigured(snapshot);
+  const missing = snapshot.channels.filter((channel) => !channel.db).map((channel) => channel.id);
+  const names = snapshot.channels.map((channel) => channel.name).join(" e ");
   return (
     <>
       <Title title="Scarica l'app sul telefono">
-        Gli audiolibri si ascoltano sul telefono, anche offline. Grillo li carica sul tuo database gratuito Turso e
-        l'app di ascolto li scarica da lì.
+        Gli audiolibri si ascoltano sul telefono, anche offline. Ogni app ({names}) ha il suo database gratuito su
+        Turso e riceve solo i libri che le mandi; dal telefono puoi anche mandare PDF a Grillo.
       </Title>
       <ol>
-        <Step n={1} title={connected ? "Turso è collegato" : "Collega Turso"}>
-          {connected ? (
-            <div className="card flex items-center gap-2.5 px-3 py-2">
-              <StatusIcon state="ok" />
-              <p className="min-w-0 flex-1 truncate font-mono text-2xs text-mute">{snapshot.turso.url}</p>
-            </div>
-          ) : (
-            <TursoSetup />
-          )}
+        <Step n={1} title={missing.length ? "Collega le app" : "App collegate"}>
+          {missing.length > 0 && <ConnectChannels ids={missing} label={`Collega ${names}`} />}
         </Step>
         <Step n={2} title="Inquadra il QR e installa l'app">
-          <AppQrs snapshot={snapshot} />
+          <ChannelList snapshot={snapshot} compact />
         </Step>
       </ol>
     </>
@@ -548,7 +542,7 @@ function Done({ snapshot }: { snapshot: AppSnapshot }) {
   const rows: [string, boolean][] = [
     ["Narratore", snapshot.runtime.state === "ready"],
     ["Voce scelta", true],
-    ["App sul telefono", tursoConfigured(snapshot)]
+    ["App sul telefono", connectedChannels(snapshot).length > 0]
   ];
   return (
     <>

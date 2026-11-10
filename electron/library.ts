@@ -27,7 +27,7 @@ export function mediaUrl(bookId: string, file: string) {
 
 export function toView(
   book: Book,
-  extra: { uploaded: number[]; queued: number[]; running: number[] }
+  extra: { uploaded: number[]; targets: string[]; queued: number[]; running: number[] }
 ): BookView {
   const chapterUrls: Record<number, string> = {};
   const chapters = book.chapters.map((chapter) => {
@@ -46,6 +46,7 @@ export function toView(
     chapters,
     coverUrl: book.cover ? mediaUrl(book.id, book.cover) : undefined,
     chapterUrls,
+    targets: extra.targets,
     uploadedChapters: extra.uploaded,
     queuedChapters: extra.queued
   };

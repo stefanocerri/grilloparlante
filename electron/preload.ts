@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
-import type { AppQr, AppSnapshot, ThemeChoice, VoiceCreateRequest, ImportRequest, SystemCheck, TursoSettings, TursoSetupOutcome } from "../shared/contracts";
+import type { AppQr, AppSnapshot, ThemeChoice, VoiceCreateRequest, ImportRequest, SystemCheck, TursoSetupOutcome } from "../shared/contracts";
 
 function subscribe<T>(channel: string, listener: (payload: T) => void) {
   const wrapped = (_event: unknown, payload: T) => listener(payload);
@@ -38,13 +38,20 @@ const api = {
   revealBook: (bookId: string) => ipcRenderer.invoke("book:reveal", bookId) as Promise<void>,
   revealLibrary: () => ipcRenderer.invoke("library:reveal") as Promise<void>,
   deleteBook: (bookId: string) => ipcRenderer.invoke("book:delete", bookId) as Promise<void>,
-  saveTurso: (settings: TursoSettings) => ipcRenderer.invoke("turso:save", settings) as Promise<void>,
-  testTurso: () => ipcRenderer.invoke("turso:test") as Promise<string>,
-  syncTurso: () => ipcRenderer.invoke("turso:sync") as Promise<void>,
-  /** Il Platform API token passa solo da qui al processo principale: non viene salvato. */
-  setupTurso: (platformToken: string, org?: string) =>
-    ipcRenderer.invoke("turso:setup", platformToken, org) as Promise<TursoSetupOutcome>,
-  tursoQr: () => ipcRenderer.invoke("turso:qr") as Promise<AppQr[]>
+  setTargets: (bookId: string, targets: string[]) => ipcRenderer.invoke("book:targets", bookId, targets) as Promise<void>,
+  addChannel: (name: string, appUrl: string) => ipcRenderer.invoke("channel:add", name, appUrl) as Promise<string>,
+  updateChannel: (id: string, patch: { name?: string; appUrl?: string }) =>
+    ipcRenderer.invoke("channel:update", id, patch) as Promise<void>,
+  removeChannel: (id: string) => ipcRenderer.invoke("channel:remove", id) as Promise<void>,
+  hasPlatformToken: () => ipcRenderer.invoke("channel:has-token") as Promise<boolean>,
+  /** Il Platform API token passa solo da qui al processo principale: resta in memoria, mai su disco. */
+  connectChannels: (ids: string[], platformToken?: string, org?: string) =>
+    ipcRenderer.invoke("channel:connect", ids, platformToken, org) as Promise<TursoSetupOutcome>,
+  connectManual: (id: string, db: { url: string; token: string; appToken?: string }) =>
+    ipcRenderer.invoke("channel:manual", id, db) as Promise<string>,
+  testChannel: (id: string) => ipcRenderer.invoke("channel:test", id) as Promise<string>,
+  syncChannels: () => ipcRenderer.invoke("channel:sync") as Promise<void>,
+  channelQrs: () => ipcRenderer.invoke("channel:qr") as Promise<AppQr[]>
 };
 
 export type GrilloApi = typeof api;

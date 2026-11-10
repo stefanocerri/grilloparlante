@@ -3,7 +3,7 @@
 ```
 PDF/EPUB/TXT/JSON ──► [app Mac: barra dei menu] ──► backend Python (OmniVoice) ──► ~/Documents/Grillo Parlante/books/<id>/
                               │                                                       book.json · cover · text/ · chapters/*.mp3
-                              └── capitolo pronto ──► Turso (books, chapter_audio) ──► app di ascolto (repo ilmatta, fomo)
+                              └── capitolo pronto ──► Turso (books, chapter_audio) ──► database di ogni app destinataria ──► app di ascolto (ilmatta, fomo, skal)
 ```
 
 ## Processi
@@ -41,13 +41,12 @@ books(id TEXT PRIMARY KEY, json TEXT, cover BLOB, cover_mime TEXT, updated_at TE
 chapter_audio(book_id TEXT, idx INTEGER, part INTEGER, data BLOB)  -- pezzi da 512 KB
 ```
 
-La configurazione guidata (`electron/tursoSetup.ts`, IPC `turso:setup`) usa la Platform API
-(`https://api.turso.tech/v1`) con un Platform API token che non viene salvato: organizzazione, gruppo (creato in
-Europa se manca), database `grillo` (riusato se esiste, risposta 409), chiavi `full-access` e `read-only` con
-`expiration=never`. Poi salva come `turso:save` (con `sync.reset()`); le tabelle le crea `testConnection`.
-
-Le app di ascolto sono in `TursoSettings.apps` (`{ id, name, url }`, predefinite `https://ilmatta.vercel.app` e `https://fomo.vercel.app`). `turso:qr`
-restituisce un QR per ogni app con un indirizzo: `<url>/#setup?db=<libsql>&token=<readToken>`.
+Canali (`electron/channels.ts`): ogni app di ascolto collegata ha il suo database Turso (`grillo-<id>`),
+creato con la Platform API (`electron/tursoSetup.ts`, IPC `channel:connect`). `ChannelStore` tiene in
+`settings.json` i canali e le destinazioni dei libri (`targets`); `ChannelSync` carica in ogni database solo i
+libri destinati a quel canale e toglie gli altri; `ChannelLink` ogni 30 s scrive `grillo_status` e gestisce la
+casella `requests` (file mandati dall'app → importazione → `choose` → `queued` → `converting` → `done`).
+Protocollo, tabelle e stati in `shared/channel.ts`, copiato nel kit delle app (skal).
 
 Il client (`shared/turso.ts`) parla direttamente con l'API HTTP di Turso (`/v2/pipeline`), senza dipendenze,
 così lo stesso file può essere copiato nelle PWA (con il token di sola lettura). Nella scheda caricata un

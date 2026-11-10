@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { AppSnapshot, BookView, ContentKind } from "@shared/contracts";
-import { ChevronRight, Cloud, Plus } from "lucide-react";
+import { ChevronRight, Cloud, Inbox as Inbox_, Plus } from "lucide-react";
 import { KINDS, kindOf } from "../lib/kinds";
 import { JobCard } from "./JobCard";
 
@@ -25,6 +25,7 @@ export function Home({
   return (
     <div className="flex flex-col gap-3 p-3">
       <JobCard snapshot={snapshot} />
+      <Inbox snapshot={snapshot} onOpenBook={onOpenBook} />
 
       <button
         onClick={async () => {
@@ -83,6 +84,41 @@ export function Home({
   );
 }
 
+const INBOX_LABEL: Record<string, string> = {
+  uploaded: "arrivato, lo leggo tra poco",
+  importing: "lo sto leggendo…",
+  choose: "scegli i capitoli (qui o sul telefono)",
+  queued: "in coda",
+  converting: "in conversione",
+  error: "errore"
+};
+
+/** File mandati dalle app e non ancora finiti. */
+function Inbox({ snapshot, onOpenBook }: { snapshot: AppSnapshot; onOpenBook: (bookId: string) => void }) {
+  if (!snapshot.inbox.length) return null;
+  return (
+    <div className="card divide-y divide-line overflow-hidden">
+      {snapshot.inbox.map((item) => (
+        <button
+          key={`${item.channelId}-${item.requestId}`}
+          disabled={!item.bookId}
+          onClick={() => item.bookId && onOpenBook(item.bookId)}
+          className="row-hover flex w-full items-center gap-2 px-3 py-2 text-left disabled:cursor-default"
+        >
+          <Inbox_ size={14} className={item.status === "error" ? "text-danger" : "text-accent"} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-medium">{item.fileName}</p>
+            <p className="truncate text-2xs text-mute">
+              da {item.channelName} · {item.status === "error" ? item.message ?? "errore" : INBOX_LABEL[item.status] ?? item.status}
+            </p>
+          </div>
+          {item.bookId && <ChevronRight size={13} className="text-faint" />}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Tab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
@@ -102,7 +138,8 @@ function BookRow({ book, snapshot, onOpen }: { book: BookView; snapshot: AppSnap
   const converting = snapshot.queue.running?.bookId === book.id;
   const total = book.chapters.length;
   const uploaded = book.uploadedChapters.length;
-  const allUploaded = snapshot.sync.state !== "off" && total > 0 && uploaded >= total;
+  const allUploaded = book.targets.length > 0 && total > 0 && uploaded >= total;
+  const targetNames = book.targets.map((id) => snapshot.channels.find((channel) => channel.id === id)?.name ?? id);
   const done = total > 0 && book.readyChapters >= total;
 
   const status = converting ? (
@@ -135,8 +172,10 @@ function BookRow({ book, snapshot, onOpen }: { book: BookView; snapshot: AppSnap
             {kind.label}
             <span className="text-faint">·</span>
             {book.voice.name}
+            <span className="text-faint">·</span>
+            <span className="truncate">{targetNames.length ? targetNames.join(", ") : "solo Mac"}</span>
             {allUploaded && (
-              <span title="Tutto su Turso" className="ml-0.5 inline-flex">
+              <span title="Tutto caricato sulle app" className="ml-0.5 inline-flex">
                 <Cloud size={11} className="text-ok" />
               </span>
             )}

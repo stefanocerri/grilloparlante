@@ -126,14 +126,20 @@ function StatusBar({ snapshot, onOpenSettings }: { snapshot: AppSnapshot; onOpen
         : runtime.state === "checking"
           ? { dot: "bg-faint", text: "Controllo…" }
           : { dot: "bg-danger", text: "Narratore da installare" };
-  const sync =
-    snapshot.sync.state === "off"
-      ? { dot: "bg-faint/50", text: "Telefono non collegato" }
-      : snapshot.sync.state === "uploading"
-        ? { dot: "bg-accent animate-pulse", text: "Carico su Turso…" }
-        : snapshot.sync.state === "error"
-          ? { dot: "bg-danger", text: "Errore Turso" }
-          : { dot: "bg-ok", text: "Turso" };
+  const connected = snapshot.channels.filter((channel) => channel.db);
+  const failing = connected.find((channel) => channel.sync.state === "error");
+  const uploading = connected.find((channel) => channel.sync.state === "uploading");
+  const sync = !connected.length
+    ? { dot: "bg-faint/50", text: "Nessuna app collegata", title: "Collega le app dalle Impostazioni" }
+    : failing
+      ? { dot: "bg-danger", text: `Errore ${failing.name}`, title: failing.sync.message }
+      : uploading
+        ? { dot: "bg-accent animate-pulse", text: `Carico su ${uploading.name}…`, title: uploading.sync.message }
+        : {
+            dot: "bg-ok",
+            text: connected.length === 1 ? connected[0].name : `${connected.length} app collegate`,
+            title: connected.map((channel) => channel.name).join(", ")
+          };
 
   return (
     <footer className="flex h-8 shrink-0 items-center gap-3 border-t border-line bg-subtle px-3 text-2xs text-mute">
@@ -142,7 +148,7 @@ function StatusBar({ snapshot, onOpenSettings }: { snapshot: AppSnapshot; onOpen
         {engine.text}
       </span>
       <span className="flex-1" />
-      <button className="flex items-center gap-1.5 hover:text-ink" title={snapshot.sync.message} onClick={onOpenSettings}>
+      <button className="flex items-center gap-1.5 hover:text-ink" title={sync.title} onClick={onOpenSettings}>
         <span className={`dot ${sync.dot}`} />
         {sync.text}
       </button>

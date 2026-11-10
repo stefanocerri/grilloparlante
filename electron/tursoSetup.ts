@@ -26,12 +26,16 @@ export type SetupResult =
       url: string;
       writeToken: string;
       readToken: string;
+      /** Seconda chiave completa, per l'app di ascolto (deve poter scrivere nella casella delle richieste). */
+      appToken: string;
     };
 
 /** Errore con un messaggio in italiano semplice, da mostrare così com'è. */
 export class SetupError extends Error {}
 
 interface Options {
+  /** Nome del database da creare o riusare (default "grillo"). */
+  dbName?: string;
   apiBase?: string;
   regionUrl?: string;
   fetch?: typeof fetch;
@@ -131,6 +135,8 @@ export async function setupTurso(platformToken: string, org?: string, options: O
     slug = orgs[0].slug;
   }
   const orgPath = `/v1/organizations/${encodeURIComponent(slug)}`;
+  const dbName = options.dbName ?? DATABASE_NAME;
+  if (!/^[a-z0-9-]{1,64}$/.test(dbName)) throw new SetupError(`Nome di database non valido: ${dbName}`);
 
   // 2. Gruppo: il primo esistente, altrimenti "default" nella località più vicina
   const { data: groupList } = await api.ok<{ groups?: { name: string }[] }>("GET", `${orgPath}/groups`);
@@ -143,26 +149,27 @@ export async function setupTurso(platformToken: string, org?: string, options: O
     createdGroup = created.status !== 409;
   }
 
-  // 3. Database "grillo": creato, oppure riusato se c'è già (409)
+  // 3. Database: creato, oppure riusato se c'è già (409)
   const created = await api.ok<{ database?: { Hostname?: string } }>(
     "POST",
     `${orgPath}/databases`,
-    { name: DATABASE_NAME, group },
+    { name: dbName, group },
     [409]
   );
   const createdDatabase = created.status !== 409;
   let hostname = created.data.database?.Hostname;
   if (!hostname) {
-    const { data } = await api.ok<{ database?: { Hostname?: string } }>("GET", `${orgPath}/databases/${DATABASE_NAME}`);
+    const { data } = await api.ok<{ database?: { Hostname?: string } }>("GET", `${orgPath}/databases/${dbName}`);
     hostname = data.database?.Hostname;
   }
   if (!hostname) throw new SetupError("Turso non ha restituito l'indirizzo del database.");
 
   // 4. Chiavi del database, senza scadenza
-  const tokenPath = `${orgPath}/databases/${DATABASE_NAME}/auth/tokens?expiration=never&authorization=`;
+  const tokenPath = `${orgPath}/databases/${dbName}/auth/tokens?expiration=never&authorization=`;
   const write = await api.ok<{ jwt?: string }>("POST", `${tokenPath}full-access`);
   const read = await api.ok<{ jwt?: string }>("POST", `${tokenPath}read-only`);
-  if (!write.data.jwt || !read.data.jwt) throw new SetupError("Turso non ha restituito le chiavi del database.");
+  const app = await api.ok<{ jwt?: string }>("POST", `${tokenPath}full-access`);
+  if (!write.data.jwt || !read.data.jwt || !app.data.jwt) throw new SetupError("Turso non ha restituito le chiavi del database.");
 
   return {
     status: "done",
@@ -172,15 +179,17 @@ export async function setupTurso(platformToken: string, org?: string, options: O
     createdDatabase,
     url: `libsql://${hostname}`,
     writeToken: write.data.jwt,
-    readToken: read.data.jwt
+    readToken: read.data.jwt,
+    appToken: app.data.jwt
   };
 }
 
 /**
  * Link del QR, nel formato che le app di ascolto leggono (ilmatta: src/lib/config.ts):
- * <url-app>/#setup?db=<url libsql>&token=<chiave di sola lettura>. Sta nel frammento #, quindi non arriva mai al server.
+ * <url-app>/#setup?db=<url libsql>&token=<chiave dell'app>[&channel=<id>&name=<nome>]. Sta nel frammento #, quindi
+ * non arriva mai al server. ilmatta legge db e token e ignora il resto.
  */
-export function setupLink(appUrl: string, db: string, readToken: string): string {
-  const params = new URLSearchParams({ db, token: readToken });
+export function setupLink(appUrl: string, db: string, token: string, extra: Record<string, string> = {}): string {
+  const params = new URLSearchParams({ db, token, ...extra });
   return `${appUrl.trim().replace(/\/+$/, "")}/#setup?${params.toString()}`;
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { AppSnapshot } from "@shared/contracts";
 import { FileText, Pause, Play, Plus } from "lucide-react";
+import { TargetPicker } from "./Channels";
 
 const SPEEDS = [0.9, 1.0, 1.1, 1.2];
 
@@ -28,6 +29,9 @@ export function NewItem({
 }) {
   const [voiceId, setVoiceId] = useState<string>(() => remembered("voiceId", snapshot.voices[0]?.id ?? ""));
   const [speed, setSpeed] = useState<number>(() => remembered("speed", 1.0));
+  const [targets, setTargets] = useState<string[]>(() =>
+    remembered<string[]>("targets", []).filter((id) => snapshot.channels.some((channel) => channel.id === id && channel.db))
+  );
   const [playing, setPlaying] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -56,8 +60,9 @@ export function NewItem({
     audio.current?.pause();
     localStorage.setItem("voiceId", JSON.stringify(voiceId));
     localStorage.setItem("speed", JSON.stringify(speed));
+    localStorage.setItem("targets", JSON.stringify(targets));
     try {
-      onImported(await window.grillo.importBook({ filePath, voiceId, speed, convertAll }));
+      onImported(await window.grillo.importBook({ filePath, voiceId, speed, convertAll, targets }));
     } catch (failure) {
       setError((failure as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, ""));
     }
@@ -143,6 +148,15 @@ export function NewItem({
             </button>
           ))}
         </div>
+      </section>
+
+      <section>
+        <p className="label mb-2">Dove lo ascolti</p>
+        <TargetPicker snapshot={snapshot} value={targets} onChange={setTargets} />
+        <p className="mt-2 font-mono text-2xs text-faint">Copia sul Mac: {snapshot.libraryDir}/books</p>
+        {!snapshot.channels.some((channel) => channel.db) && (
+          <p className="mt-1 text-2xs text-mute">Per mandarlo al telefono collega un'app nelle Impostazioni.</p>
+        )}
       </section>
 
       {error && <p className="note-error">{error}</p>}

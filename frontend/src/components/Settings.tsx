@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { AppSnapshot, ThemeChoice } from "@shared/contracts";
-import { FolderOpen, Monitor, Moon, Power, RefreshCw, Sun, Wand2 } from "lucide-react";
-import { AppQrs, Disclosure, TursoForm, TursoSetup, tursoConfigured } from "./TursoForm";
+import { FolderOpen, Monitor, Moon, Power, Sun, Wand2 } from "lucide-react";
+import { ChannelList } from "./Channels";
 import { CustomVoices } from "./VoiceCreate";
 
 function Section({ title, description, children, action }: { title: string; description?: string; children: ReactNode; action?: ReactNode }) {
@@ -20,58 +20,13 @@ function Section({ title, description, children, action }: { title: string; desc
 }
 
 export function Settings({ snapshot, onNewVoice }: { snapshot: AppSnapshot; onNewVoice: () => void }) {
-  const syncDot =
-    snapshot.sync.state === "error"
-      ? "bg-danger"
-      : snapshot.sync.state === "uploading"
-        ? "bg-accent animate-pulse"
-        : snapshot.sync.state === "idle"
-          ? "bg-ok"
-          : "bg-faint/50";
-
-  const configured = tursoConfigured(snapshot);
-
   return (
     <div className="flex flex-col gap-3 p-3">
       <Section
-        title="Turso"
-        description="Ogni capitolo pronto viene caricato sul tuo database; l'app del telefono lo legge da lì. Le notizie scadute vengono tolte da Turso (sul Mac restano)."
-        action={
-          <button
-            className="icon-btn -mr-1"
-            title="Ricarica tutto su Turso"
-            disabled={snapshot.sync.state === "off"}
-            onClick={() => void window.grillo.syncTurso()}
-          >
-            <RefreshCw size={14} />
-          </button>
-        }
+        title="App collegate"
+        description="Ogni app ha il suo database su Turso e riceve solo i libri che mandi a lei. I libri restano sempre anche sul Mac."
       >
-        <div className="space-y-4">
-          {configured ? (
-            <div className="space-y-1">
-              <p className="flex items-center gap-1.5 text-xs">
-                <span className={`dot ${syncDot}`} />
-                {snapshot.sync.message}
-              </p>
-              <p className="truncate font-mono text-2xs text-faint">{snapshot.turso.url}</p>
-            </div>
-          ) : (
-            <TursoSetup />
-          )}
-          <Disclosure title={configured ? "Modifica a mano" : "Configurazione avanzata (ho già un database)"}>
-            <TursoForm snapshot={snapshot} />
-          </Disclosure>
-          {configured && (
-            <Disclosure title="Configura di nuovo con un Platform API token">
-              <TursoSetup />
-            </Disclosure>
-          )}
-        </div>
-      </Section>
-
-      <Section title="App di ascolto" description="Un QR per ogni app del telefono. Nel QR c'è solo la chiave di sola lettura.">
-        <AppQrs snapshot={snapshot} />
+        <ChannelList snapshot={snapshot} />
       </Section>
 
       <Section title="Voci" description="Oltre alle quattro voci incluse puoi crearne di nuove da un campione audio.">
@@ -86,13 +41,13 @@ export function Settings({ snapshot, onNewVoice }: { snapshot: AppSnapshot; onNe
         <p className="text-xs text-mute">{snapshot.runtime.message}</p>
       </Section>
 
-      <Section title="Libreria">
+      <Section title="Libreria sul Mac" description="Una cartella per libro, con testo, copertina e MP3 di ogni capitolo.">
         <button
           className="flex w-full items-center gap-2 text-left font-mono text-2xs text-mute hover:text-ink"
           onClick={() => void window.grillo.revealLibrary()}
         >
           <FolderOpen size={13} className="shrink-0" />
-          <span className="truncate">{snapshot.libraryDir}</span>
+          <span className="truncate">{snapshot.libraryDir}/books</span>
         </button>
       </Section>
 

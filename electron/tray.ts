@@ -59,9 +59,12 @@ export function updateTray(snapshot: AppSnapshot) {
   } else if (importing) {
     title = " …";
     tooltip = `Importo ${importing}`;
-  } else if (snapshot.sync.state === "uploading") {
-    title = " ↑";
-    tooltip = snapshot.sync.message;
+  } else {
+    const uploading = snapshot.channels.find((channel) => channel.sync.state === "uploading");
+    if (uploading) {
+      title = " ↑";
+      tooltip = `${uploading.name}: ${uploading.sync.message}`;
+    }
   }
 
   if (title !== lastTitle) {
