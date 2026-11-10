@@ -11,7 +11,7 @@
   </defs>
   <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)" filter="url(#shadow)"/>
   <rect x="100.5" y="100.5" width="823" height="823" rx="184.5" fill="none" stroke="#fff" stroke-opacity="0.12"/>
-  <g transform="translate(512 512) scale(1.0) translate(-512 -512)" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="translate(512 512) scale(0.8) translate(-512 -515)" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
     <path d="M330 300 h364 a70 70 0 0 1 70 70 v220 a70 70 0 0 1 -70 70 h-214 l-122 96 v-96 h-28 a70 70 0 0 1 -70 -70 v-220 a70 70 0 0 1 70 -70 z" stroke-width="44"/>
     <path d="M412 440 v80 M476 400 v160 M548 418 v124 M612 452 v56" stroke-width="40"/>
   </g>

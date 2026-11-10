@@ -8,7 +8,7 @@ export function Mark({ size = 20 }: { size?: number }) {
       className="inline-flex shrink-0 items-center justify-center rounded-[22%] bg-ink text-bg"
       style={{ width: size, height: size }}
     >
-      <svg viewBox="200 260 624 560" width={Math.round(size * 0.72)} height={Math.round(size * 0.72)} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+      <svg viewBox="200 260 624 560" width={Math.round(size * 0.6)} height={Math.round(size * 0.6)} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
         <path d="M330 300 h364 a70 70 0 0 1 70 70 v220 a70 70 0 0 1 -70 70 h-214 l-122 96 v-96 h-28 a70 70 0 0 1 -70 -70 v-220 a70 70 0 0 1 70 -70 z" strokeWidth="52" />
         <path d="M412 440 v80 M476 400 v160 M548 418 v124 M612 452 v56" strokeWidth="48" />
       </svg>
