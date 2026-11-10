@@ -159,6 +159,7 @@ export function ChannelList({ snapshot, compact = false }: { snapshot: AppSnapsh
 function ChannelCard({ channel, qr, compact }: { channel: ChannelView; qr?: AppQr; compact: boolean }) {
   const [url, setUrl] = useState(channel.appUrl);
   const [connecting, setConnecting] = useState(false);
+  const [bigQr, setBigQr] = useState(false);
   const [test, setTest] = useState<{ ok: boolean; text: string } | null>(null);
   useEffect(() => setUrl(channel.appUrl), [channel.appUrl]);
   const dirty = url.trim() !== channel.appUrl;
@@ -204,14 +205,38 @@ function ChannelCard({ channel, qr, compact }: { channel: ChannelView; qr?: AppQ
 
         {qr ? (
           <div className="flex items-center gap-3">
-            <div className="shrink-0 rounded-md border border-line bg-white p-1.5">
-              <img src={qr.image} className="h-28 w-28" alt={`QR per collegare ${channel.name}`} />
-            </div>
+            <button
+              className="shrink-0 cursor-zoom-in rounded-md border border-line bg-white p-1"
+              title="Ingrandisci il QR"
+              onClick={() => setBigQr(true)}
+            >
+              <img src={qr.image} className="h-36 w-36" style={{ imageRendering: "pixelated" }} alt={`QR per collegare ${channel.name}`} />
+            </button>
             <p className="text-xs leading-relaxed text-mute">
-              Inquadralo con il telefono: si apre {channel.name} già collegata. Poi installala: su iPhone Condividi →{" "}
+              <button className="font-medium text-ink underline underline-offset-2" onClick={() => setBigQr(true)}>
+                Ingrandisci il QR
+              </button>{" "}
+              e inquadralo con il telefono: si apre {channel.name} già collegata. Poi installala: su iPhone Condividi →{" "}
               <span className="text-ink">Aggiungi alla schermata Home</span>, su Android menu ⋮ →{" "}
               <span className="text-ink">Installa app</span>.
             </p>
+            {bigQr && (
+              <div
+                className="fixed inset-0 z-50 flex cursor-zoom-out flex-col items-center justify-center gap-3 bg-black/85 p-4"
+                onClick={() => setBigQr(false)}
+                onKeyDown={(event) => event.key === "Escape" && setBigQr(false)}
+                tabIndex={-1}
+                ref={(node) => node?.focus()}
+              >
+                <img
+                  src={qr.image}
+                  className="rounded-lg bg-white"
+                  style={{ width: "min(90vw, 85vh)", height: "min(90vw, 85vh)", imageRendering: "pixelated" }}
+                  alt={`QR per collegare ${channel.name}`}
+                />
+                <p className="text-xs text-white/80">Inquadralo con la fotocamera del telefono · clic o Esc per chiudere</p>
+              </div>
+            )}
           </div>
         ) : channel.db ? (
           <p className="text-2xs text-faint">Inserisci l'indirizzo dell'app: il QR compare subito.</p>

@@ -511,7 +511,7 @@ ipcMain.handle("channel:qr", async (): Promise<AppQr[]> => {
   return Promise.all(
     ready.map(async (channel) => {
       const link = setupLink(channel.appUrl, channel.db!.url, channel.db!.appToken, { channel: channel.id, name: channel.name });
-      return { id: channel.id, name: channel.name, link, image: await QRCode.toDataURL(link, { margin: 1, width: 280 }) };
+      return { id: channel.id, name: channel.name, link, image: await QRCode.toDataURL(link, { errorCorrectionLevel: "L", margin: 4, width: 1024 }) };
     })
   );
 });
