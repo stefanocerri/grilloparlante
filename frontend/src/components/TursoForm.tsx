@@ -241,7 +241,7 @@ function AppRow({ app, snapshot, qr, connected }: { app: ListeningApp; snapshot:
           <p className="text-2xs text-faint">
             {!connected
               ? "Il QR compare quando Turso è configurato."
-              : "Inserisci l'indirizzo dove hai pubblicato l'app: il QR compare subito."}
+              : "Inserisci l'indirizzo dell'app: il QR compare subito."}
           </p>
         )}
       </div>

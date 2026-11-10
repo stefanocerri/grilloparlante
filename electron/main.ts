@@ -21,16 +21,17 @@ protocol.registerSchemesAsPrivileged([
 const SUPPORTED = new Set([".pdf", ".epub", ".txt", ".md", ".json"]);
 const SYNC_EVERY_MS = 60 * 60 * 1000;
 const settingsFile = () => userDataFile("settings.json");
-/** Le app di ascolto, in repository separati. L'indirizzo lo inserisce l'utente dopo averle pubblicate. */
+/** Le app di ascolto, in repository separati e pubblicate su Vercel. L'indirizzo si può cambiare nelle Impostazioni. */
 const DEFAULT_APPS: ListeningApp[] = [
-  { id: "ilmatta", name: "ilmatta", url: "" },
-  { id: "fomo", name: "fomo", url: "" }
+  { id: "ilmatta", name: "ilmatta", url: "https://ilmatta.vercel.app" },
+  { id: "fomo", name: "fomo", url: "https://fomo.vercel.app" }
 ];
 /** Vecchio indirizzo predefinito, quando la PWA stava in questo repository: non va migrato. */
 const LEGACY_PWA_URL = "https://grilloparlante.vercel.app";
 
 function cleanApps(apps: ListeningApp[] | undefined): ListeningApp[] {
-  const list = DEFAULT_APPS.map((app) => ({ ...app, url: apps?.find((item) => item.id === app.id)?.url?.trim() ?? "" }));
+  // Campo vuoto: torna all'indirizzo predefinito.
+  const list = DEFAULT_APPS.map((app) => ({ ...app, url: apps?.find((item) => item.id === app.id)?.url?.trim() || app.url }));
   const extra = (apps ?? []).filter((app) => !DEFAULT_APPS.some((item) => item.id === app.id));
   return [...list, ...extra.map((app) => ({ ...app, url: app.url.trim() }))];
 }

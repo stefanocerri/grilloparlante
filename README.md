@@ -111,9 +111,10 @@ sul Mac) e chiave di sola lettura (va alle app del telefono). Schema delle tabel
 ### App di ascolto e QR
 
 Le app per il telefono vivono in repository separati: [ilmatta](https://github.com/stefanocerri/ilmatta)
-(audiolibri) e [fomo](https://github.com/stefanocerri/fomo). Dopo averle pubblicate (per esempio su Vercel),
-inserisci il loro indirizzo in Impostazioni → **App di ascolto**: per ognuna compare il suo QR, che apre
-quell'app già collegata. Il link ha questo formato, letto da ilmatta in `src/lib/config.ts`:
+(audiolibri) e [fomo](https://github.com/stefanocerri/fomo), pubblicate su
+[ilmatta.vercel.app](https://ilmatta.vercel.app) e [fomo.vercel.app](https://fomo.vercel.app). Sono gli indirizzi
+predefiniti: appena Turso è configurato, in Impostazioni → **App di ascolto** compare un QR per ognuna, che apre
+quell'app già collegata. Gli indirizzi si possono cambiare lì (campo vuoto = torna al predefinito). Il link ha questo formato, letto da ilmatta in `src/lib/config.ts`:
 
 ```text
 <indirizzo-app>/#setup?db=<libsql://...>&token=<chiave di sola lettura>

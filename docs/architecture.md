@@ -46,7 +46,7 @@ La configurazione guidata (`electron/tursoSetup.ts`, IPC `turso:setup`) usa la P
 Europa se manca), database `grillo` (riusato se esiste, risposta 409), chiavi `full-access` e `read-only` con
 `expiration=never`. Poi salva come `turso:save` (con `sync.reset()`); le tabelle le crea `testConnection`.
 
-Le app di ascolto sono in `TursoSettings.apps` (`{ id, name, url }`, predefinite ilmatta e fomo). `turso:qr`
+Le app di ascolto sono in `TursoSettings.apps` (`{ id, name, url }`, predefinite `https://ilmatta.vercel.app` e `https://fomo.vercel.app`). `turso:qr`
 restituisce un QR per ogni app con un indirizzo: `<url>/#setup?db=<libsql>&token=<readToken>`.
 
 Il client (`shared/turso.ts`) parla direttamente con l'API HTTP di Turso (`/v2/pipeline`), senza dipendenze,
