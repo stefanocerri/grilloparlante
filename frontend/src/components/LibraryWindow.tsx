@@ -49,7 +49,7 @@ export function LibraryWindow() {
     });
   }, [snapshot, filter, query]);
 
-  if (!snapshot) return <div className="h-full bg-bg" />;
+  if (!snapshot) return <div className="h-full bg-canvas" />;
   const book = snapshot.books.find((item) => item.id === selected) ?? books[0];
 
   return (
@@ -266,7 +266,7 @@ function Reader({ book, snapshot }: { book: BookView; snapshot: AppSnapshot }) {
           })}
         </ol>
 
-        <div ref={textRef} className="relative min-w-0 flex-1 overflow-y-auto">
+        <div ref={textRef} className="relative min-w-0 flex-1 overflow-y-auto bg-bg">
           <div className="sticky top-0 z-10 flex justify-end gap-1 bg-gradient-to-b from-bg via-bg/90 to-transparent px-4 pb-4 pt-3">
             <button className="icon-btn border border-line bg-bg" title="Testo più piccolo" onClick={() => setFontSize((value) => Math.max(13, value - 1))}>
               <Minus size={13} />

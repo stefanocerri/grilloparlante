@@ -38,6 +38,18 @@ export function NewItem({
   const importing = Boolean(snapshot.queue.importing);
   const engineReady = snapshot.runtime.state === "ready";
   const fileName = filePath.split("/").pop() ?? filePath;
+  const extension = fileName.split(".").pop()?.toUpperCase() ?? "";
+  const [preview, setPreview] = useState<string | null | undefined>(undefined);
+
+  // Anteprima della prima pagina (QuickLook) del file scelto.
+  useEffect(() => {
+    let alive = true;
+    setPreview(undefined);
+    void window.grillo.previewFile(filePath).then((value) => alive && setPreview(value));
+    return () => {
+      alive = false;
+    };
+  }, [filePath]);
 
   useEffect(() => () => audio.current?.pause(), []);
 
@@ -71,19 +83,24 @@ export function NewItem({
   return (
     <div className="flex flex-col gap-4 p-3">
       <button
-        className="card row-hover flex items-center gap-3 px-3 py-2.5 text-left"
+        className="card row-hover flex items-center gap-3 p-2.5 text-left"
         onClick={async () => {
           const file = await window.grillo.pickBook();
           if (file) onChangeFile(file);
         }}
         title="Scegli un altro file"
       >
-        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-line bg-subtle">
-          <FileText size={15} className="text-mute" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{fileName}</p>
-          <p className="text-2xs text-mute">Clicca per sceglierne un altro</p>
+        {preview ? (
+          <img src={preview} className="h-28 w-20 shrink-0 rounded-sm bg-white object-cover object-top ring-1 ring-line" alt="Prima pagina" />
+        ) : (
+          <span className="inline-flex h-28 w-20 shrink-0 items-center justify-center rounded-sm border border-line bg-subtle">
+            <FileText size={18} className={preview === undefined ? "animate-pulse text-faint" : "text-faint"} />
+          </span>
+        )}
+        <div className="min-w-0 flex-1 space-y-1">
+          <span className="badge-gray font-mono">{extension}</span>
+          <p className="line-clamp-2 text-sm font-medium leading-snug">{fileName}</p>
+          <p className="text-2xs text-mute">Anteprima della prima pagina · clicca per scegliere un altro file</p>
         </div>
       </button>
 

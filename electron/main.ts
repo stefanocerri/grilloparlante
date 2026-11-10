@@ -16,6 +16,7 @@ import { checkSystem } from "./system";
 import { SetupError, setupLink, setupTurso } from "./tursoSetup";
 import { createTray, updateTray } from "./tray";
 import { libraryWindow, openLibraryWindow } from "./libraryWindow";
+import { ensureCover, previewDataUrl } from "./thumbnail";
 
 protocol.registerSchemesAsPrivileged([
   { scheme: "grillo", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }
@@ -146,6 +147,7 @@ async function importForChannel(filePath: string, options: RequestOptions, chann
   const voiceId = voices().some((voice) => voice.id === options.voiceId) ? options.voiceId! : defaultVoice();
   if (!voiceId) throw new Error("Nessuna voce disponibile su Grillo.");
   const bookId = await queue.importBook({ filePath, voiceId, speed: options.speed ?? 1 });
+  await ensureCover(bookId, filePath);
   store.setTargets(bookId, [channelId]);
   syncs.get(channelId)?.syncBook(bookId);
   broadcast();
@@ -370,6 +372,7 @@ ipcMain.handle("voice:delete", (_event, voiceId: string) => voiceCreator.delete(
 
 ipcMain.handle("book:import", async (_event, request: ImportRequest) => {
   const bookId = await queue.importBook(request);
+  await ensureCover(bookId, request.filePath);
   store.defaultVoiceId = request.voiceId;
   store.setTargets(bookId, request.targets ?? []);
   for (const sync of syncs.values()) sync.syncBook(bookId);
@@ -380,6 +383,9 @@ ipcMain.handle("book:import", async (_event, request: ImportRequest) => {
   }
   return bookId;
 });
+
+/** Prima pagina del file scelto, da mostrare prima di importarlo. */
+ipcMain.handle("file:preview", (_event, filePath: string) => previewDataUrl(filePath));
 
 ipcMain.handle("book:convert", (_event, bookId: string, chapters: number[]) => queue.enqueue(bookId, chapters));
 

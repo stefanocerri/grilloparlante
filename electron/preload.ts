@@ -32,6 +32,7 @@ const api = {
   cancelVoice: () => ipcRenderer.invoke("voice:cancel") as Promise<void>,
   dismissVoiceJob: () => ipcRenderer.invoke("voice:dismiss") as Promise<void>,
   deleteVoice: (voiceId: string) => ipcRenderer.invoke("voice:delete", voiceId) as Promise<void>,
+  previewFile: (filePath: string) => ipcRenderer.invoke("file:preview", filePath) as Promise<string | null>,
   importBook: (request: ImportRequest) => ipcRenderer.invoke("book:import", request) as Promise<string>,
   convert: (bookId: string, chapters: number[]) => ipcRenderer.invoke("book:convert", bookId, chapters) as Promise<void>,
   cancelQueue: () => ipcRenderer.invoke("queue:cancel") as Promise<void>,

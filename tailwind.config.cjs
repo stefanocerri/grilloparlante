@@ -6,6 +6,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        canvas: color("canvas"),
         bg: color("bg"),
         subtle: color("subtle"),
         ink: color("ink"),

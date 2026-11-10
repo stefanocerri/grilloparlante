@@ -9,7 +9,7 @@ let popover: BrowserWindow | null = null;
 
 /** Stesso colore di sfondo dell'interfaccia (tema chiaro o scuro del Mac), per non vedere lampi all'apertura. */
 export function popoverBackground() {
-  return nativeTheme.shouldUseDarkColors ? "#0a0a0a" : "#ffffff";
+  return nativeTheme.shouldUseDarkColors ? "#0a0a0a" : "#f2f2f2";
 }
 let hideTimer: NodeJS.Timeout | null = null;
 /** Mentre e aperto un dialogo (scelta file, conferma) il pannello non deve chiudersi. */

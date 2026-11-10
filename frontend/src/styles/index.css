@@ -20,12 +20,14 @@
 /* Colori come canali RGB, cosi Tailwind puo usare le trasparenze (es. bg-accent/10). */
 :root {
   color-scheme: light;
+  /* Fondo della finestra grigio; card, campi e area di lettura bianchi (--bg) per staccarsi dal fondo. */
+  --canvas: 242 242 242;
   --bg: 255 255 255;
-  --subtle: 250 250 250;
+  --subtle: 235 235 235;
   --ink: 23 23 23;
   --mute: 102 102 102;
   --faint: 143 143 143;
-  --line: 235 235 235;
+  --line: 224 224 224;
   --accent: 0 107 255;
   --ok: 22 150 76;
   --warn: 217 119 6;
@@ -35,6 +37,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
+    --canvas: 10 10 10;
     --bg: 10 10 10;
     --subtle: 20 20 20;
     --ink: 237 237 237;
@@ -57,7 +60,7 @@ body,
 body {
   margin: 0;
   overflow: hidden;
-  @apply bg-bg font-sans text-sm text-ink;
+  @apply bg-canvas font-sans text-sm text-ink;
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "ss01", "cv11";
   user-select: none;

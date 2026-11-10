@@ -31,7 +31,7 @@ export function App() {
     }
   }, [snapshot, view]);
 
-  if (!snapshot) return <div className="h-full bg-bg" />;
+  if (!snapshot) return <div className="h-full bg-canvas" />;
 
   if (!snapshot.onboarded) {
     return <Onboarding snapshot={snapshot} onPickFile={(filePath) => setView({ kind: "new", filePath })} />;
