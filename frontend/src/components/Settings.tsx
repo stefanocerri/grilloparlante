@@ -29,7 +29,7 @@ export function Settings({ snapshot, onNewVoice }: { snapshot: AppSnapshot; onNe
         <ChannelList snapshot={snapshot} />
       </Section>
 
-      <Section title="Voci" description="Oltre alle quattro voci incluse puoi crearne di nuove da un campione audio.">
+      <Section title="Voci" description="Oltre alle voci incluse puoi crearne di nuove da un campione audio.">
         <CustomVoices snapshot={snapshot} onNew={onNewVoice} />
       </Section>
 

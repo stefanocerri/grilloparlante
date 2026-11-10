@@ -27,7 +27,12 @@ export function NewItem({
   onImported: (bookId: string) => void;
   onNewVoice: () => void;
 }) {
-  const [voiceId, setVoiceId] = useState<string>(() => remembered("voiceId", snapshot.voices[0]?.id ?? ""));
+  const [voiceId, setVoiceId] = useState<string>(() => {
+    // La voce ricordata può non esistere più (voce tolta o eliminata): in quel caso si riparte dalla prima.
+    const fallback = snapshot.voices[0]?.id ?? "";
+    const saved = remembered("voiceId", fallback);
+    return snapshot.voices.some((voice) => voice.id === saved) ? saved : fallback;
+  });
   const [speed, setSpeed] = useState<number>(() => remembered("speed", 1.0));
   const [targets, setTargets] = useState<string[]>(() =>
     remembered<string[]>("targets", []).filter((id) => snapshot.channels.some((channel) => channel.id === id && channel.db))

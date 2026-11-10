@@ -1,6 +1,4 @@
 [
   {"id": "uomo_01", "name": "Marco", "gender": "uomo", "description": "Voce maschile calda, ritmo da narratore"},
-  {"id": "uomo_02", "name": "Paolo", "gender": "uomo", "description": "Voce maschile grave e pacata"},
-  {"id": "donna_b", "name": "Giulia", "gender": "donna", "description": "Voce femminile matura, tono basso"},
   {"id": "donna_e", "name": "Anna", "gender": "donna", "description": "Voce femminile anziana, profonda"}
 ]

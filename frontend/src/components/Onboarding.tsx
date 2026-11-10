@@ -441,10 +441,12 @@ function EngineInstall({ snapshot }: { snapshot: AppSnapshot }) {
 
 function VoicePick({ snapshot }: { snapshot: AppSnapshot }) {
   const [voiceId, setVoiceId] = useState<string>(() => {
+    const fallback = snapshot.voices[0]?.id ?? "";
     try {
-      return JSON.parse(localStorage.getItem("voiceId") ?? "null") ?? snapshot.voices[0]?.id ?? "";
+      const saved = JSON.parse(localStorage.getItem("voiceId") ?? "null");
+      return snapshot.voices.some((voice) => voice.id === saved) ? saved : fallback;
     } catch {
-      return snapshot.voices[0]?.id ?? "";
+      return fallback;
     }
   });
   const [playing, setPlaying] = useState<string | null>(null);
