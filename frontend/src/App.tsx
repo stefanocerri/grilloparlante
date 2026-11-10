@@ -9,6 +9,7 @@ import { RuntimeSetup } from "./components/RuntimeSetup";
 import { Settings } from "./components/Settings";
 import { VoiceCreate } from "./components/VoiceCreate";
 import { Mark } from "./components/ui";
+import { useIntro } from "./lib/useIntro";
 import { useSnapshot } from "./lib/useSnapshot";
 
 type View =
@@ -21,6 +22,7 @@ type View =
 export function App() {
   const snapshot = useSnapshot();
   const [view, setView] = useState<View>({ kind: "home" });
+  useIntro();
 
   // File trascinato sull'icona nella barra dei menu.
   useEffect(() => window.grillo.onFileDropped((filePath) => setView({ kind: "new", filePath })), []);

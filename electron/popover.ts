@@ -38,7 +38,12 @@ export function getPopover(): BrowserWindow {
     roundedCorners: true,
     backgroundColor: popoverBackground(),
     ...(process.platform === "darwin" ? { type: "panel" as const } : {}),
-    webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true }
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      // Il saluto del Grillo alla prima apertura parte da solo, senza aspettare un clic.
+      autoplayPolicy: "no-user-gesture-required"
+    }
   });
   popover.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   // Link esterni (es. l'articolo originale) nel browser, non in una finestra dell'app.
