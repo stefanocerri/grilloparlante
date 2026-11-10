@@ -39,8 +39,8 @@ export function channelId(name: string) {
 
 /**
  * Canali e destinazioni dei libri, in settings.json. Nessuna app predefinita: si aggiungono dalle Impostazioni.
- * Migrazione: chi usava il vecchio database unico se lo ritrova come canale ilmatta (con la chiave di sola
- * lettura per l'app) e tutti i libri già presenti restano destinati a lui, così non cambia nulla.
+ * Migrazione: chi usava il vecchio database unico se lo ritrova come canale ilmatta (con la chiave completa
+ * anche per l'app) e tutti i libri già presenti restano destinati a lui, così non cambia nulla.
  */
 export class ChannelStore {
   channels: Channel[];
@@ -55,6 +55,7 @@ export class ChannelStore {
     if (stored.channels) {
       this.channels = stored.channels;
       this.targets = stored.targets ?? {};
+      if (this.upgradeAppTokens()) this.save();
       return;
     }
     this.channels = [];
@@ -70,8 +71,9 @@ export class ChannelStore {
           name: "grillo",
           url: legacy.url,
           token: legacy.writeToken,
-          appToken: legacy.readToken || legacy.writeToken,
-          appCanWrite: !legacy.readToken
+          appToken: legacy.writeToken,
+          appCanWrite: true,
+          rescan: Boolean(legacy.readToken)
         }
       });
       for (const book of listBooks()) this.targets[book.id] = ["ilmatta"];
@@ -88,6 +90,22 @@ export class ChannelStore {
     writeJson(this.file, { ...stored, channels: this.channels, targets: this.targets, defaultVoiceId: this.defaultVoiceId });
   }
 
+  /**
+   * I collegamenti di prima davano all'app la chiave di sola lettura, ma Grillo ha già quella completa dello
+   * stesso database: basta passare quella all'app (nel QR), senza creare un database nuovo.
+   */
+  private upgradeAppTokens() {
+    let changed = false;
+    for (const channel of this.channels) {
+      const db = channel.db;
+      if (db && !db.appCanWrite && db.token) {
+        channel.db = { ...db, appToken: db.token, appCanWrite: true, rescan: true };
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
   get(id: string) {
     return this.channels.find((channel) => channel.id === id);
   }
@@ -102,9 +120,10 @@ export class ChannelStore {
     return channel;
   }
 
-  update(id: string, patch: Partial<Pick<Channel, "name" | "appUrl" | "db">>) {
+  update(id: string, patch: Partial<Pick<Channel, "name" | "appUrl" | "db">> & { rescanDone?: boolean }) {
     const channel = this.get(id);
     if (!channel) throw new Error("App non trovata.");
+    if (patch.rescanDone && channel.db) channel.db = { ...channel.db, rescan: false };
     if (patch.name !== undefined) channel.name = patch.name.trim() || channel.name;
     if (patch.appUrl !== undefined) channel.appUrl = patch.appUrl.trim();
     if (patch.db !== undefined) channel.db = patch.db;

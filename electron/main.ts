@@ -441,8 +441,8 @@ ipcMain.handle("channel:add", (_event, name: string, appUrl: string) => {
   return channel.id;
 });
 
-ipcMain.handle("channel:update", (_event, id: string, patch: { name?: string; appUrl?: string }) => {
-  store.update(id, { name: patch.name, appUrl: patch.appUrl });
+ipcMain.handle("channel:update", (_event, id: string, patch: { name?: string; appUrl?: string; rescanDone?: boolean }) => {
+  store.update(id, { name: patch.name, appUrl: patch.appUrl, rescanDone: patch.rescanDone });
   broadcast();
 });
 

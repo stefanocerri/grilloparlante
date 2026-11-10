@@ -227,9 +227,23 @@ function ChannelCard({ channel, qr, compact }: { channel: ChannelView; qr?: AppQ
 
         {channel.db && !channel.db.appCanWrite && (
           <p className="note-warn">
-            Collegata alla vecchia maniera: l'app può ascoltare ma non mandarti file. Collegala di nuovo qui sotto per
+            L'app ha una chiave di sola lettura: può ascoltare ma non mandarti file. Collegala di nuovo qui sotto per
             abilitarlo (il QR cambia).
           </p>
+        )}
+        {channel.db?.appCanWrite && channel.db.rescan && qr && (
+          <div className="note-info flex items-start gap-2">
+            <p className="flex-1">
+              Il QR è cambiato: ora {channel.name} può anche mandarti file. Inquadralo di nuovo con il telefono (o
+              apri l'app dal QR) per aggiornarla.
+            </p>
+            <button
+              className="btn-ghost btn-sm shrink-0"
+              onClick={() => void window.grillo.updateChannel(channel.id, { rescanDone: true })}
+            >
+              Fatto
+            </button>
+          </div>
         )}
 
         {!compact && (
