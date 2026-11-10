@@ -36,6 +36,9 @@ const api = {
   convert: (bookId: string, chapters: number[]) => ipcRenderer.invoke("book:convert", bookId, chapters) as Promise<void>,
   cancelQueue: () => ipcRenderer.invoke("queue:cancel") as Promise<void>,
   revealBook: (bookId: string) => ipcRenderer.invoke("book:reveal", bookId) as Promise<void>,
+  /** Apre la finestra Libreria (archivio, lettura e ascolto), facoltativamente su un libro. */
+  openLibrary: (bookId?: string) => ipcRenderer.invoke("library:open", bookId) as Promise<void>,
+  onLibraryShow: (listener: (bookId: string) => void) => subscribe("library:show", listener),
   revealLibrary: () => ipcRenderer.invoke("library:reveal") as Promise<void>,
   deleteBook: (bookId: string) => ipcRenderer.invoke("book:delete", bookId) as Promise<void>,
   setTargets: (bookId: string, targets: string[]) => ipcRenderer.invoke("book:targets", bookId, targets) as Promise<void>,

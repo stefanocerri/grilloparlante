@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AppSnapshot } from "@shared/contracts";
-import { ArrowLeft, Settings as SettingsIcon } from "lucide-react";
+import { ArrowLeft, LibraryBig, Settings as SettingsIcon } from "lucide-react";
 import { BookDetail } from "./components/BookDetail";
 import { Home } from "./components/Home";
 import { NewItem } from "./components/NewItem";
@@ -71,6 +71,9 @@ export function App() {
           </>
         )}
         <span className="flex-1" />
+        <button className="icon-btn" onClick={() => void window.grillo.openLibrary()} title="Libreria: archivio, lettura e ascolto">
+          <LibraryBig size={15} />
+        </button>
         {view.kind !== "settings" && (
           <button className="icon-btn -mr-1" onClick={() => setView({ kind: "settings" })} title="Impostazioni">
             <SettingsIcon size={15} />

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AppSnapshot, BookView, ChapterEntry } from "@shared/contracts";
-import { Cloud, ExternalLink, FolderOpen, Loader2, Pause, Play, Trash2 } from "lucide-react";
+import { BookOpenText, Cloud, ExternalLink, FolderOpen, Loader2, Pause, Play, Trash2 } from "lucide-react";
 import { formatDuration, formatMinutes } from "../lib/format";
 import { kindOf } from "../lib/kinds";
 import { JobCard } from "./JobCard";
@@ -99,6 +99,10 @@ export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snap
           </p>
         </div>
       </header>
+
+      <button className="btn-secondary w-full" onClick={() => void window.grillo.openLibrary(book.id)}>
+        <BookOpenText size={14} /> Leggi e ascolta nella Libreria
+      </button>
 
       <section className="space-y-2 rounded-lg border border-line bg-subtle p-2.5">
         <div className="flex items-center gap-2">

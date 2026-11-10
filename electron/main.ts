@@ -15,9 +15,10 @@ import { RuntimeManager } from "./runtime";
 import { checkSystem } from "./system";
 import { SetupError, setupLink, setupTurso } from "./tursoSetup";
 import { createTray, updateTray } from "./tray";
+import { libraryWindow, openLibraryWindow } from "./libraryWindow";
 
 protocol.registerSchemesAsPrivileged([
-  { scheme: "grillo", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
+  { scheme: "grillo", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }
 ]);
 
 const SUPPORTED = new Set([".pdf", ".epub", ".txt", ".md", ".json"]);
@@ -190,6 +191,7 @@ function broadcast() {
     updateTray(current);
     const popover = getPopover();
     if (!popover.isDestroyed()) popover.webContents.send("app:snapshot", current);
+    libraryWindow()?.webContents.send("app:snapshot", current);
   }, 120);
 }
 
@@ -211,7 +213,17 @@ function serveFile(request: Request): Response {
   const size = fs.statSync(file).size;
   const ext = path.extname(file).toLowerCase();
   const type =
-    ext === ".mp3" ? "audio/mpeg" : ext === ".png" ? "image/png" : ext === ".wav" ? "audio/wav" : "image/jpeg";
+    ext === ".mp3"
+      ? "audio/mpeg"
+      : ext === ".png"
+        ? "image/png"
+        : ext === ".wav"
+          ? "audio/wav"
+          : ext === ".txt"
+            ? "text/plain; charset=utf-8"
+            : "image/jpeg";
+  // L'interfaccia (anche da http://127.0.0.1 in sviluppo) legge il testo dei capitoli con fetch.
+  const cors = { "Access-Control-Allow-Origin": "*" };
   const range = /bytes=(\d*)-(\d*)/.exec(request.headers.get("range") ?? "");
 
   if (range) {
@@ -224,14 +236,15 @@ function serveFile(request: Request): Response {
         "Content-Type": type,
         "Content-Length": String(end - start + 1),
         "Content-Range": `bytes ${start}-${end}/${size}`,
-        "Accept-Ranges": "bytes"
+        "Accept-Ranges": "bytes",
+        ...cors
       }
     });
   }
 
   const stream = Readable.toWeb(fs.createReadStream(file)) as ReadableStream;
   return new Response(stream, {
-    headers: { "Content-Type": type, "Content-Length": String(size), "Accept-Ranges": "bytes" }
+    headers: { "Content-Type": type, "Content-Length": String(size), "Accept-Ranges": "bytes", ...cors }
   });
 }
 
@@ -264,6 +277,7 @@ if (!app.requestSingleInstanceLock()) {
     nativeTheme.on("updated", () => {
       const popover = getPopover();
       if (!popover.isDestroyed()) popover.setBackgroundColor(popoverBackground());
+      libraryWindow()?.setBackgroundColor(popoverBackground());
     });
     broadcast();
   });
@@ -374,6 +388,11 @@ ipcMain.handle("queue:cancel", () => queue.cancelAll());
 ipcMain.handle("book:reveal", (_event, bookId: string) => shell.openPath(bookDir(bookId)));
 
 ipcMain.handle("library:reveal", () => shell.openPath(libraryDir()));
+
+ipcMain.handle("library:open", (_event, bookId?: string) => {
+  hidePopover();
+  openLibraryWindow(bookId);
+});
 
 ipcMain.handle("book:delete", async (_event, bookId: string) => {
   queue.dequeueBook(bookId);

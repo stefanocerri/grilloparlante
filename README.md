@@ -62,6 +62,17 @@ Stile sobrio in bianco e nero con bordi sottili, ispirato alle dashboard per svi
 I colori sono variabili CSS in `frontend/src/styles/index.css`, i componenti di base (pulsanti, card, badge, campi)
 sono classi Tailwind nello stesso file. In basso una barra di stato mostra sempre narratore e Turso.
 
+## Libreria: archivio, lettura e ascolto
+
+Dal pannello, l'icona **Libreria** (o "Leggi e ascolta" nella scheda di un libro) apre una finestra più grande:
+- a sinistra l'archivio di tutti i libri sul Mac, con ricerca e filtri (Tutto, Solo Mac, per app);
+- a destra il libro: destinazioni, capitoli e il **testo** del capitolo scelto, con dimensione regolabile;
+- in basso il player: riprende da dove eri rimasto, ±30 secondi, capitolo precedente/successivo, velocità da
+  0,8× a 2×, e passa da solo al capitolo dopo.
+
+La copia sul Mac sta in `~/Documents/Grillo Parlante/books/<id>/` (testo in `text/`, audio in `chapters/`):
+"Apri nel Finder" la mostra.
+
 ## Voci da un campione
 
 Oltre alle quattro voci incluse puoi crearne di nuove: Impostazioni → **Voci** → "Nuova voce da un campione", oppure
