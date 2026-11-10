@@ -17,6 +17,7 @@ from app.audio.mp3 import silence, write_mp3
 from app.chunking.chunker import chunk_chapters
 from app.jobs.models import Chapter
 from app.library import BookStore
+from app.text_cleanup import clean_for_speech
 from app.tts.omnivoice_engine import SAMPLE_RATE, OmniVoiceEngine
 from app.utils.events import EventEmitter
 from app.utils.files import slugify
@@ -110,13 +111,16 @@ class ConversionJob:
     import soundfile as sf
 
     announce = self.book.get("readTitles", True) and _should_announce(chapter.title)
+    # Ripulito anche qui (non solo all'importazione), così vale pure per i libri importati prima.
+    chapter.text = clean_for_speech(chapter.text)
+    spoken_title = clean_for_speech(chapter.title)
     if announce:
       # Il titolo viene annunciato a parte (con una pausa): toglilo dall'inizio del testo
       # se c'e gia, altrimenti verrebbe letto due volte.
-      chapter.text = _strip_leading_title(chapter.text, chapter.title) or chapter.text
+      chapter.text = _strip_leading_title(chapter.text, spoken_title) or chapter.text
     parts = [chunk.text for chunk in chunk_chapters([chapter], CHUNK_CHARS)]
     if announce:
-      parts.insert(0, chapter.title.rstrip(".") + ".")
+      parts.insert(0, spoken_title.rstrip(".") + ".")
 
     self.store.work_dir.mkdir(parents=True, exist_ok=True)
     pieces: list[np.ndarray] = []

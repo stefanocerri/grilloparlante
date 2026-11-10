@@ -5,6 +5,7 @@ import re
 from app.jobs.models import Chapter, Chunk
 
 SENTENCE_BREAK = re.compile(r"(?<=[.!?])\s+")
+MIN_TAIL_CHARS = 200
 
 
 def _split_paragraph(paragraph: str, target_chars: int) -> list[str]:
@@ -57,6 +58,11 @@ def chunk_chapters(chapters: list[Chapter], target_chars: int) -> list[Chunk]:
           current = fragment
           continue
         current = candidate
+
+    # Un ultimo pezzo cortissimo lo uniamo al precedente: sui pezzi brevi la voce aggiunge suoni che non ci sono.
+    if current.strip() and chunks and chunks[-1].chapter_id == chapter.id and len(current) < MIN_TAIL_CHARS:
+      chunks[-1].text = f"{chunks[-1].text}\n\n{current.strip()}"
+      current = ""
 
     if current.strip():
       chunks.append(
