@@ -3,6 +3,7 @@ import type { AppSnapshot, BookView, ContentKind } from "@shared/contracts";
 import { ChevronRight, Cloud, Inbox as Inbox_, Plus } from "lucide-react";
 import { KINDS, kindOf } from "../lib/kinds";
 import { JobCard } from "./JobCard";
+import { Grillo3D } from "./ui";
 
 type Filter = "all" | ContentKind;
 
@@ -26,6 +27,12 @@ export function Home({
     <div className="flex flex-col gap-3 p-3">
       <JobCard snapshot={snapshot} />
       <Inbox snapshot={snapshot} onOpenBook={onOpenBook} />
+
+      {empty && (
+        <div className="flex justify-center">
+          <Grillo3D size={190} />
+        </div>
+      )}
 
       <button
         onClick={async () => {

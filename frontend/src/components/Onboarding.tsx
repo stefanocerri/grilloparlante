@@ -13,7 +13,7 @@ import {
   WifiOff
 } from "lucide-react";
 import { ChannelList, ConnectChannels, connectedChannels } from "./Channels";
-import { CopyCommand, Mark, Spinner, Step, StatusIcon, type CheckState } from "./ui";
+import { CopyCommand, Grillo3D, Mark, Spinner, Step, StatusIcon, type CheckState } from "./ui";
 
 /**
  * Configurazione guidata al primo avvio, pensata per chi non ha mai aperto il Terminale:
@@ -195,8 +195,8 @@ function Welcome() {
   ];
   return (
     <div className="flex flex-col">
-      <div className="mb-5 mt-2">
-        <Mark size={40} />
+      <div className="-mt-1 mb-1 flex justify-center">
+        <Grillo3D size={168} />
       </div>
       <Title title="Benvenuto in Grillo parlante">
         Trasforma PDF, EPUB e articoli in audiolibri con una voce italiana naturale, capitolo per capitolo.

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { lazy, Suspense, useState, type ReactNode } from "react";
 import { Check, Copy, Loader2, X } from "lucide-react";
 
 /** Logo: fumetto con onda sonora, come l'icona dell'app (assets/icon.svg) e quella nella barra dei menu. */
@@ -78,4 +78,17 @@ export function Step({ n, title, children }: { n: number; title: ReactNode; chil
 /** Messaggio di errore di Electron senza il prefisso "Error invoking remote method...". */
 export function cleanError(error: unknown) {
   return String((error as Error)?.message ?? error).replace(/^Error invoking remote method '[^']+': (Error: )?/, "");
+}
+
+const GrilloModel = lazy(() => import("./GrilloModel"));
+
+/** Il Grillo 3D che gira: three.js si carica a parte, senza rallentare l'apertura del pannello. */
+export function Grillo3D({ size = 150 }: { size?: number }) {
+  return (
+    <div className="shrink-0" style={{ width: size, height: size }}>
+      <Suspense fallback={null}>
+        <GrilloModel size={size} />
+      </Suspense>
+    </div>
+  );
 }
