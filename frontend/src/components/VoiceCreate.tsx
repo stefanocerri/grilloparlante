@@ -135,10 +135,6 @@ export function VoiceCreate({ snapshot, onDone }: { snapshot: AppSnapshot; onDon
         />
       </label>
 
-      <p className="text-2xs leading-relaxed text-faint">
-        Usa solo voci che hai il diritto di usare: la tua, o quella di chi ti ha dato il permesso.
-      </p>
-
       {error && <p className="note-error">{error}</p>}
       {!engineReady && <p className="note-warn">Prima va installato il narratore.</p>}
 

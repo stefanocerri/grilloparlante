@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import json
 import secrets
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -40,14 +43,55 @@ def _cut_at_pause(audio: np.ndarray, seconds: float) -> np.ndarray:
   return audio[:cut]
 
 
-def prepare_sample(input_path: str, has_transcript: bool) -> np.ndarray:
-  import librosa
+def _converters(source: str, target: str) -> list[list[str]]:
+  """Comandi di sistema che sanno convertire in WAV mono 24 kHz: afconvert (di serie su macOS) e ffmpeg."""
+  commands = []
+  afconvert = shutil.which("afconvert") or "/usr/bin/afconvert"
+  if Path(afconvert).exists():
+    commands.append([afconvert, "-f", "WAVE", "-d", f"LEI16@{SAMPLE_RATE}", "-c", "1", source, target])
+  candidates = [shutil.which("ffmpeg"), "/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"]
+  ffmpeg = next((item for item in candidates if item and Path(item).exists()), None)
+  if ffmpeg:
+    commands.append([ffmpeg, "-v", "error", "-y", "-i", source, "-vn", "-ac", "1", "-ar", str(SAMPLE_RATE), target])
+  return commands
+
+
+def _load_converted(input_path: str) -> np.ndarray | None:
+  """Per i formati che le librerie Python non aprono da sole (M4A/AAC, video…): converte e rilegge."""
+  import soundfile as sf
+
+  with tempfile.TemporaryDirectory() as folder:
+    target = str(Path(folder) / "campione.wav")
+    for command in _converters(input_path, target):
+      try:
+        subprocess.run(command, check=True, capture_output=True, timeout=120)
+        audio, _ = sf.read(target, dtype="float32", always_2d=True)
+      except (OSError, RuntimeError, subprocess.SubprocessError):
+        continue
+      if len(audio):
+        return audio.mean(axis=1)
+  return None
+
+
+def _load_sample(input_path: str) -> np.ndarray:
   from omnivoice.utils.audio import load_audio
 
   try:
-    audio = load_audio(input_path, SAMPLE_RATE)[0]
-  except Exception as error:  # formato non leggibile
-    raise VoiceError("Non riesco a leggere questo file audio. Prova con un WAV, MP3, M4A o FLAC.") from error
+    audio = np.asarray(load_audio(input_path, SAMPLE_RATE)[0], dtype=np.float32).squeeze()
+    if audio.size:
+      return audio
+  except Exception:  # formato che le librerie non aprono: provo a convertirlo
+    pass
+  audio = _load_converted(input_path)
+  if audio is None:
+    raise VoiceError("Non riesco a leggere questo file audio. Prova a convertirlo in WAV o MP3.")
+  return audio
+
+
+def prepare_sample(input_path: str, has_transcript: bool) -> np.ndarray:
+  import librosa
+
+  audio = _load_sample(input_path)
   audio, _ = librosa.effects.trim(audio, top_db=35)
   seconds = len(audio) / SAMPLE_RATE
   if seconds < MIN_SECONDS:
