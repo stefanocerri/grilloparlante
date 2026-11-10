@@ -20,14 +20,14 @@
 /* Colori come canali RGB, cosi Tailwind puo usare le trasparenze (es. bg-accent/10). */
 :root {
   color-scheme: light;
-  /* Fondo della finestra grigio; card, campi e area di lettura bianchi (--bg) per staccarsi dal fondo. */
-  --canvas: 242 242 242;
-  --bg: 255 255 255;
-  --subtle: 235 235 235;
+  /* Tutto grigio, niente bianco: fondo (--canvas) e, un filo più chiari, card, campi e area di lettura (--bg). */
+  --canvas: 235 235 235;
+  --bg: 243 243 243;
+  --subtle: 228 228 228;
   --ink: 23 23 23;
   --mute: 102 102 102;
   --faint: 143 143 143;
-  --line: 224 224 224;
+  --line: 214 214 214;
   --accent: 0 107 255;
   --ok: 22 150 76;
   --warn: 217 119 6;
