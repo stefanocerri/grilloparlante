@@ -51,7 +51,9 @@ export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snap
   const remove = async () => {
     const ok = await window.grillo.confirm(
       `Eliminare "${book.title}"?`,
-      syncOn ? "Viene tolto dal Mac e dalle app a cui l'avevi mandato." : "Viene tolto dal Mac."
+      syncOn
+        ? "Viene tolto dal Mac e dalle app a cui l'avevi mandato. Per toglierlo solo da un'app, deselezionala in \"Dove si ascolta\"."
+        : "Viene tolto dal Mac."
     );
     if (!ok) return;
     audio.current?.pause();

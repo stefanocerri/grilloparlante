@@ -1,4 +1,4 @@
-import { app, clipboard, dialog, ipcMain, nativeTheme, protocol, shell } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, protocol, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -338,16 +338,12 @@ ipcMain.handle("dialog:pick-book", () =>
   })
 );
 
-ipcMain.handle("dialog:confirm", (_event, message: string, detail?: string) =>
+ipcMain.handle("dialog:confirm", (event, message: string, detail?: string, action = "Elimina") =>
   withPopoverPinned(async () => {
-    const result = await dialog.showMessageBox({
-      type: "warning",
-      buttons: ["Elimina", "Annulla"],
-      defaultId: 1,
-      cancelId: 1,
-      message,
-      detail
-    });
+    const options = { type: "warning" as const, buttons: [action, "Annulla"], defaultId: 1, cancelId: 1, message, detail };
+    // Dalla finestra Libreria il dialogo si aggancia a lei (foglio); dal pannello resta libero.
+    const parent = BrowserWindow.fromWebContents(event.sender);
+    const result = parent && parent === libraryWindow() ? await dialog.showMessageBox(parent, options) : await dialog.showMessageBox(options);
     return result.response === 0;
   })
 );

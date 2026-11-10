@@ -11,7 +11,8 @@ import {
   SkipBack,
   SkipForward,
   RotateCcw,
-  RotateCw
+  RotateCw,
+  Trash2
 } from "lucide-react";
 import { formatDuration } from "../lib/format";
 import { kindOf } from "../lib/kinds";
@@ -51,6 +52,7 @@ export function LibraryWindow() {
 
   if (!snapshot) return <div className="h-full bg-canvas" />;
   const book = snapshot.books.find((item) => item.id === selected) ?? books[0];
+  const channelName = (id: string) => snapshot.channels.find((channel) => channel.id === id)?.name ?? id;
 
   return (
     <div className="flex h-full">
@@ -102,7 +104,7 @@ export function LibraryWindow() {
                   <div className="min-w-0 flex-1">
                     <p className={`truncate text-sm ${active ? "font-semibold" : "font-medium"}`}>{item.title}</p>
                     <p className="truncate text-2xs text-mute">
-                      {item.readyChapters}/{item.chapters.length} pronti · {item.targets.length ? item.targets.join(", ") : "solo Mac"}
+                      {item.readyChapters}/{item.chapters.length} pronti · {item.targets.length ? item.targets.map(channelName).join(", ") : "solo Mac"}
                     </p>
                   </div>
                 </button>
@@ -123,7 +125,7 @@ export function LibraryWindow() {
 
       <main className="flex min-w-0 flex-1 flex-col">
         <div className="h-3 shrink-0 [-webkit-app-region:drag]" />
-        {book ? <Reader key={book.id} book={book} snapshot={snapshot} /> : <Empty />}
+        {book ? <Reader key={book.id} book={book} snapshot={snapshot} onDeleted={() => setSelected(null)} /> : <Empty />}
       </main>
     </div>
   );
@@ -196,7 +198,7 @@ function loadPosition(bookId: string): Position | null {
 }
 
 /** Libro aperto: intestazione, capitoli, testo del capitolo scelto e player. */
-function Reader({ book, snapshot }: { book: BookView; snapshot: AppSnapshot }) {
+function Reader({ book, snapshot, onDeleted }: { book: BookView; snapshot: AppSnapshot; onDeleted: () => void }) {
   const saved = loadPosition(book.id);
   const [current, setCurrent] = useState<number>(saved?.index ?? book.chapters[0]?.index ?? 1);
   const [fontSize, setFontSize] = useState<number>(() => Number(localStorage.getItem("readerFont") ?? 17));
@@ -212,6 +214,19 @@ function Reader({ book, snapshot }: { book: BookView; snapshot: AppSnapshot }) {
   useEffect(() => {
     textRef.current?.scrollTo({ top: 0 });
   }, [current]);
+
+  const remove = async () => {
+    const ok = await window.grillo.confirm(
+      `Eliminare "${book.title}"?`,
+      book.targets.length
+        ? "Viene tolto dal Mac e dalle app a cui l'avevi mandato. Per toglierlo solo da un'app, deselezionala nelle destinazioni."
+        : "Viene tolto dal Mac."
+    );
+    if (!ok) return;
+    localStorage.removeItem(positionKey(book.id));
+    await window.grillo.deleteBook(book.id);
+    onDeleted();
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -234,9 +249,14 @@ function Reader({ book, snapshot }: { book: BookView; snapshot: AppSnapshot }) {
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
           <TargetPicker snapshot={snapshot} value={book.targets} onChange={(targets) => void window.grillo.setTargets(book.id, targets)} />
-          <button className="btn-ghost btn-sm" onClick={() => void window.grillo.revealBook(book.id)}>
-            <FolderOpen size={13} /> Apri nel Finder
-          </button>
+          <div className="flex gap-1">
+            <button className="btn-ghost btn-sm" onClick={() => void window.grillo.revealBook(book.id)}>
+              <FolderOpen size={13} /> Apri nel Finder
+            </button>
+            <button className="btn-ghost btn-sm hover:text-danger" onClick={remove}>
+              <Trash2 size={13} /> Elimina
+            </button>
+          </div>
         </div>
       </header>
 
@@ -308,6 +328,12 @@ function Player({ book, chapter, onChapter }: { book: BookView; chapter?: Chapte
   const url = chapter ? book.chapterUrls[chapter.index] : undefined;
   const readyChapters = book.chapters.filter((item) => book.chapterUrls[item.index]);
   const position = readyChapters.findIndex((item) => item.index === chapter?.index);
+
+  // Cambiando libro (o eliminandolo) il player sparisce: l'audio non deve continuare da solo.
+  useEffect(() => {
+    const element = audio.current;
+    return () => element?.pause();
+  }, []);
 
   useEffect(() => {
     const element = audio.current;

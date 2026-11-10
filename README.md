@@ -100,7 +100,10 @@ testo; titolo, fonte, link e date restano in `book.json` (campo `meta` di ogni c
 I libri restano **sempre sul Mac**, in `~/Documents/Grillo Parlante/books/` (una cartella per libro). In più puoi
 mandarli alle app di ascolto per il telefono: ogni app collegata è un **canale** con il suo database gratuito su
 Turso, e riceve solo i libri destinati a lei. Le destinazioni si scelgono quando importi un file ("Dove lo ascolti")
-e si cambiano dalla scheda del libro; togliere un'app toglie il libro dal suo database, non dal Mac.
+e si cambiano dalla scheda del libro o dalla Libreria: un clic sull'app evidenziata (compare una ×) la dissocia e
+toglie il libro dal suo database, non dal Mac. Se l'app è scollegata il libro si può dissociare lo stesso: sparisce
+dal suo database al prossimo collegamento. Per eliminare del tutto un libro (dal Mac e da tutte le app) c'è il
+cestino nella scheda del libro o "Elimina" nella Libreria.
 
 Non ci sono app predefinite: si aggiungono da Impostazioni → App collegate (nome e indirizzo). Per crearne una
 nuova si parte dal guscio [skal](https://github.com/stefanocerri/skal).

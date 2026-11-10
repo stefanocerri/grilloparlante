@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { AppQr, AppSnapshot, ChannelView, TursoOrgChoice } from "@shared/contracts";
-import { ChevronRight, ExternalLink, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { ChevronRight, ExternalLink, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { cleanError, Spinner } from "./ui";
 
 export const connectedChannels = (snapshot: AppSnapshot) => snapshot.channels.filter((channel) => channel.db);
@@ -409,18 +409,32 @@ export function TargetPicker({
       </span>
       {snapshot.channels.map((channel) => {
         const on = value.includes(channel.id);
-        const disabled = !channel.db;
+        // Un'app scollegata non può ricevere libri nuovi, ma un libro già destinato a lei si può sempre togliere.
+        const disabled = !channel.db && !on;
         return (
           <button
             key={channel.id}
             disabled={disabled}
             onClick={() => toggle(channel.id)}
-            title={disabled ? "Da collegare nelle Impostazioni" : undefined}
-            className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors disabled:opacity-40 ${
-              on ? "border-accent bg-accent/10 text-accent" : "border-line text-mute hover:border-ink/20 hover:text-ink"
+            title={
+              disabled
+                ? "Da collegare nelle Impostazioni"
+                : on
+                  ? `Togli da ${channel.name} (sul Mac resta)`
+                  : `Manda a ${channel.name}`
+            }
+            className={`group inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors disabled:opacity-40 ${
+              on ? "border-accent bg-accent/10 text-accent hover:border-danger/40 hover:bg-danger/10 hover:text-danger" : "border-line text-mute hover:border-ink/20 hover:text-ink"
             }`}
           >
-            <span className={`dot h-1.5 w-1.5 ${on ? "bg-accent" : "bg-faint/50"}`} />
+            {on ? (
+              <>
+                <span className="dot h-1.5 w-1.5 bg-accent group-hover:hidden" />
+                <X size={11} className="-mx-0.5 hidden group-hover:block" />
+              </>
+            ) : (
+              <span className="dot h-1.5 w-1.5 bg-faint/50" />
+            )}
             {channel.name}
           </button>
         );

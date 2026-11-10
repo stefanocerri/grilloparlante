@@ -25,7 +25,9 @@ const api = {
   openTerminal: () => ipcRenderer.invoke("app:open-terminal") as Promise<string>,
   copy: (text: string) => ipcRenderer.invoke("clipboard:write", text) as Promise<void>,
   pickBook: () => ipcRenderer.invoke("dialog:pick-book") as Promise<string | null>,
-  confirm: (message: string, detail?: string) => ipcRenderer.invoke("dialog:confirm", message, detail) as Promise<boolean>,
+  /** Chiede conferma; `action` è l'etichetta del pulsante (predefinito "Elimina"). */
+  confirm: (message: string, detail?: string, action?: string) =>
+    ipcRenderer.invoke("dialog:confirm", message, detail, action) as Promise<boolean>,
   pathForFile: (file: File) => webUtils.getPathForFile(file),
   pickVoiceSample: () => ipcRenderer.invoke("voice:pick-sample") as Promise<string | null>,
   createVoice: (request: VoiceCreateRequest) => ipcRenderer.invoke("voice:create", request) as Promise<string>,
