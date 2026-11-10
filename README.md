@@ -121,7 +121,7 @@ memoria** finché Grillo è aperto (così colleghi più app con un clic), mai su
 
 Chi ha già un database può usare "Configurazione avanzata" (indirizzo e chiavi a mano). Chi usava la versione con
 un database unico se lo ritrova come canale ilmatta, con i libri già destinati a ilmatta: niente da ricaricare;
-dato che allora l'app aveva una chiave di sola lettura, per mandare file dal telefono va ricollegata.
+allora l'app aveva una chiave di sola lettura, ora Grillo le dà quella completa: basta inquadrare di nuovo il QR.
 
 ### Dal telefono a Grillo
 

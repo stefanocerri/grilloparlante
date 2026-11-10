@@ -126,6 +126,8 @@ export interface ChannelDb {
   appToken: string;
   /** false se appToken è di sola lettura (collegamenti di prima): l'app non può mandare file a Grillo. */
   appCanWrite: boolean;
+  /** true dopo che la chiave dell'app è passata da sola lettura a completa: il telefono deve inquadrare il nuovo QR. */
+  rescan?: boolean;
 }
 
 /** Un'app di ascolto collegata a Grillo ("canale"): ha il suo database e riceve solo i libri destinati a lei. */
