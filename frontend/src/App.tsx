@@ -92,17 +92,17 @@ export function App() {
   );
 }
 
-/** Barra in basso: stato del motore voce e di Turso, sempre visibile. */
+/** Barra in basso: stato del narratore e di Turso, sempre visibile. */
 function StatusBar({ snapshot, onOpenSettings }: { snapshot: AppSnapshot; onOpenSettings: () => void }) {
   const runtime = snapshot.runtime;
   const engine =
     runtime.state === "ready"
-      ? { dot: "bg-ok", text: runtime.device === "mps" ? "Voce pronta · GPU" : "Voce pronta" }
+      ? { dot: "bg-ok", text: runtime.device === "mps" ? "Narratore pronto · GPU" : "Narratore pronto" }
       : runtime.state === "installing"
         ? { dot: "bg-accent animate-pulse", text: "Installazione…" }
         : runtime.state === "checking"
           ? { dot: "bg-faint", text: "Controllo…" }
-          : { dot: "bg-danger", text: "Voce da installare" };
+          : { dot: "bg-danger", text: "Narratore da installare" };
   const sync =
     snapshot.sync.state === "off"
       ? { dot: "bg-faint/50", text: "Telefono non collegato" }

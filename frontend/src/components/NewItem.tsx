@@ -132,7 +132,7 @@ export function NewItem({
       </section>
 
       {error && <p className="note-error">{error}</p>}
-      {!engineReady && <p className="note-warn">Prima va installato il motore voce.</p>}
+      {!engineReady && <p className="note-warn">Prima va installato il narratore.</p>}
 
       <div className="flex flex-col gap-2">
         <button className="btn-primary btn-lg" disabled={!voiceId || importing || !engineReady} onClick={() => start(true)}>

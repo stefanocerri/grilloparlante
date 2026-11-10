@@ -77,11 +77,8 @@ export function Settings({ snapshot }: { snapshot: AppSnapshot }) {
         <ThemePicker value={snapshot.theme} />
       </Section>
 
-      <Section title="Motore voce">
-        <p className="text-xs text-mute">
-          {snapshot.runtime.message}
-          {snapshot.runtime.device ? ` · ${snapshot.runtime.device}` : ""}
-        </p>
+      <Section title="Narratore" description="OmniVoice, il modello che legge i tuoi libri. Gira sul Mac, anche senza internet.">
+        <p className="text-xs text-mute">{snapshot.runtime.message}</p>
       </Section>
 
       <Section title="Libreria">

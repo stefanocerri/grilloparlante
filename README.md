@@ -45,7 +45,7 @@ Al primo avvio il pannello apre una guida in sei passi, pensata per chi non ha m
 1. **Benvenuto**: cosa fa l'app e quanto ci vuole (circa 15 minuti, quasi tutti di download).
 2. **Il tuo Mac**: controlla da sola processore, spazio libero (ne servono circa 8 GB) e Python. Se Python manca,
    mostra i comandi da copiare (Homebrew e poi `python@3.12`) con il pulsante per aprire il Terminale e "Ricontrolla".
-3. **Motore voce**: installa OmniVoice con la barra di avanzamento; se qualcosa va storto mostra i dettagli e "Riprova".
+3. **Narratore**: installa OmniVoice con la barra di avanzamento; se qualcosa va storto mostra i dettagli e "Riprova".
 4. **Voce**: anteprime delle quattro voci; quella scelta diventa la predefinita.
 5. **Telefono**: incolli un solo Platform API token di Turso, premi "Configura" e Grillo crea database e
    chiavi; poi un QR per ogni app di ascolto da installare sul telefono. Si può rimandare.
@@ -60,7 +60,7 @@ Stile sobrio in bianco e nero con bordi sottili, ispirato alle dashboard per svi
 [Geist](https://vercel.com/font) (licenza SIL OFL, dal pacchetto npm `geist`), segue il tema chiaro o scuro del Mac oppure quello scelto in Impostazioni → **Aspetto**
 (Sistema, Chiaro, Scuro; salvato in `settings.json` e applicato con `nativeTheme.themeSource`).
 I colori sono variabili CSS in `frontend/src/styles/index.css`, i componenti di base (pulsanti, card, badge, campi)
-sono classi Tailwind nello stesso file. In basso una barra di stato mostra sempre motore voce e Turso.
+sono classi Tailwind nello stesso file. In basso una barra di stato mostra sempre narratore e Turso.
 
 ## Libreria
 

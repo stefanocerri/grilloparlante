@@ -1,7 +1,7 @@
 import type { RuntimeStatus } from "@shared/contracts";
 import { Download } from "lucide-react";
 
-/** Se il motore voce manca (es. configurazione saltata): stessa cosa del passo 3 della guida, in breve. */
+/** Se il narratore manca (es. configurazione saltata): stessa cosa del passo 3 della guida, in breve. */
 export function RuntimeSetup({ runtime }: { runtime: RuntimeStatus }) {
   const installing = runtime.state === "installing";
   const checking = runtime.state === "checking";
@@ -10,7 +10,7 @@ export function RuntimeSetup({ runtime }: { runtime: RuntimeStatus }) {
   return (
     <div className="p-3">
       <div className="card p-4">
-        <p className="eyebrow">Motore voce</p>
+        <p className="eyebrow">Narratore</p>
         <h1 className="mt-1.5 text-base font-semibold">Installiamo la voce</h1>
         <p className="mt-1.5 text-xs leading-relaxed text-mute">
           Grillo parlante usa OmniVoice, un modello che gira interamente sul tuo Mac. Si scarica una volta sola
@@ -41,7 +41,7 @@ export function RuntimeSetup({ runtime }: { runtime: RuntimeStatus }) {
           onClick={() => void window.grillo.installRuntime()}
         >
           <Download size={14} />
-          {installing ? "Installazione in corso…" : runtime.state === "error" ? "Ripara il motore voce" : "Installa il motore voce"}
+          {installing ? "Installazione in corso…" : runtime.state === "error" ? "Ripara il narratore" : "Installa il narratore"}
         </button>
         <button className="btn-ghost mt-1 w-full" onClick={() => void window.grillo.restartOnboarding()}>
           Apri la configurazione guidata

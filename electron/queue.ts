@@ -105,7 +105,7 @@ export class ConversionQueue {
 
   private requirePython() {
     const python = this.hooks.python();
-    if (!python) throw new Error("Il motore voce non è pronto.");
+    if (!python) throw new Error("Il narratore non è pronto.");
     return python;
   }
 
@@ -123,7 +123,7 @@ export class ConversionQueue {
 
     const item = this.pending.shift()!;
     this.running = item;
-    this.progress = { bookId: item.bookId, progress: 0, label: "Avvio del motore voce…" };
+    this.progress = { bookId: item.bookId, progress: 0, label: "Avvio del narratore…" };
     this.hooks.onChange();
 
     let failure = "";

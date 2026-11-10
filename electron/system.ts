@@ -30,7 +30,7 @@ async function freeDiskGb(): Promise<number | null> {
   }
 }
 
-/** Tutto quello che serve sapere prima di installare il motore voce, senza chiedere nulla all'utente. */
+/** Tutto quello che serve sapere prima di installare il narratore, senza chiedere nulla all'utente. */
 export async function checkSystem(): Promise<SystemCheck> {
   const python = bootstrapPython();
   const version = python ? pythonVersion(python) : null;

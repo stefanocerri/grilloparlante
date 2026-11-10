@@ -17,10 +17,10 @@ import { CopyCommand, Mark, Spinner, Step, StatusIcon, type CheckState } from ".
 
 /**
  * Configurazione guidata al primo avvio, pensata per chi non ha mai aperto il Terminale:
- * 1. benvenuto  2. controllo del Mac (e Python)  3. motore voce  4. voce  5. app sul telefono (Turso + QR)  6. fatto.
+ * 1. benvenuto  2. controllo del Mac (e Python)  3. narratore  4. voce  5. app sul telefono (Turso + QR)  6. fatto.
  * Si può saltare in qualsiasi momento; si rifà dalle Impostazioni.
  */
-const STEPS = ["Benvenuto", "Il tuo Mac", "Motore voce", "Voce", "Telefono", "Pronto"] as const;
+const STEPS = ["Benvenuto", "Il tuo Mac", "Narratore", "Voce", "Telefono", "Pronto"] as const;
 
 export function Onboarding({ snapshot, onPickFile }: { snapshot: AppSnapshot; onPickFile: (filePath: string) => void }) {
   const [step, setStep] = useState(0);
@@ -190,7 +190,7 @@ function Title({ title, children }: { title: string; children?: ReactNode }) {
 function Welcome() {
   const points: [ReactNode, string, string][] = [
     [<HardDrive size={15} />, "Tutto sul tuo Mac", "La voce viene creata qui, senza abbonamenti e senza mandare i tuoi libri a nessuno."],
-    [<Download size={15} />, "Circa 15 minuti, una volta sola", "Quasi tutto è il download del motore voce (circa 5 GB)."],
+    [<Download size={15} />, "Circa 15 minuti, una volta sola", "Quasi tutto è il download del narratore (circa 5 GB)."],
     [<WifiOff size={15} />, "Poi anche senza internet", "La voce si crea sul Mac senza internet; serve solo per mandare gli audio al telefono."]
   ];
   return (
@@ -288,19 +288,19 @@ function MacCheck({
           title={disk === null ? "Spazio libero" : `${disk.toLocaleString("it-IT")} GB liberi`}
           detail={
             diskOk
-              ? `Ne servono circa ${system.requiredDiskGb} per il motore voce.`
+              ? `Ne servono circa ${system.requiredDiskGb} per il narratore.`
               : `Ne servono almeno ${system.requiredDiskGb}. Svuota il Cestino o sposta qualche file, poi ricontrolla.`
           }
         />
         <CheckRow
           state={pythonOk ? "ok" : "fail"}
-          title={engineReady ? "Motore voce già installato" : system.python.ok ? `Python ${system.python.version}` : "Python non trovato"}
+          title={engineReady ? "Narratore già installato" : system.python.ok ? `Python ${system.python.version}` : "Python non trovato"}
           detail={
             engineReady
               ? "Il prossimo passo è già fatto."
               : system.python.ok
-                ? "Serve per installare il motore voce."
-                : "Serve Python 3.10 o più recente per installare il motore voce. Si installa una volta sola."
+                ? "Serve per installare il narratore."
+                : "Serve Python 3.10 o più recente per installare il narratore. Si installa una volta sola."
           }
         />
       </ul>
@@ -346,7 +346,7 @@ function PythonGuide({ system }: { system: SystemCheck }) {
   );
 }
 
-// --- 3. Motore voce ----------------------------------------------------------
+// --- 3. Narratore ----------------------------------------------------------
 
 function EngineInstall({ snapshot }: { snapshot: AppSnapshot }) {
   const runtime = snapshot.runtime;
@@ -356,7 +356,7 @@ function EngineInstall({ snapshot }: { snapshot: AppSnapshot }) {
   if (runtime.state === "ready") {
     return (
       <>
-        <Title title="Il motore voce è pronto">{runtime.message}</Title>
+        <Title title="Il narratore è pronto">{runtime.message}</Title>
         <div className="card flex items-center gap-3 p-3">
           <StatusIcon state="ok" />
           <div>
@@ -420,7 +420,7 @@ function EngineInstall({ snapshot }: { snapshot: AppSnapshot }) {
             disabled={!runtime.canInstall || runtime.state === "checking"}
             onClick={() => void window.grillo.installRuntime()}
           >
-            <Download size={14} /> {failed ? "Riprova" : "Installa il motore voce"}
+            <Download size={14} /> {failed ? "Riprova" : "Installa il narratore"}
           </button>
         )}
       </div>
@@ -546,7 +546,7 @@ function PhoneSetup({ snapshot }: { snapshot: AppSnapshot }) {
 
 function Done({ snapshot }: { snapshot: AppSnapshot }) {
   const rows: [string, boolean][] = [
-    ["Motore voce", snapshot.runtime.state === "ready"],
+    ["Narratore", snapshot.runtime.state === "ready"],
     ["Voce scelta", true],
     ["App sul telefono", tursoConfigured(snapshot)]
   ];

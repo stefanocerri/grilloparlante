@@ -46,7 +46,7 @@ export function JobCard({ snapshot }: { snapshot: AppSnapshot }) {
         <div style={{ width: `${percent}%` }} />
       </div>
       <p className="mt-2 flex gap-1 truncate text-2xs text-mute">
-        <span className="truncate">{progress?.label ?? "Avvio del motore voce…"}</span>
+        <span className="truncate">{progress?.label ?? "Avvio del narratore…"}</span>
         <span className="text-faint">·</span>
         <span className="shrink-0">
           {formatEta(progress?.etaSeconds)}

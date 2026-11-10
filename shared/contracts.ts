@@ -142,7 +142,7 @@ export interface SystemCheck {
   homebrew: { ok: boolean; path: string | null };
   /** Spazio libero nel disco dell'utente, in GB (null se non si riesce a leggerlo). */
   freeDiskGb: number | null;
-  /** Spazio che serve per il motore voce, in GB. */
+  /** Spazio che serve per il narratore, in GB. */
   requiredDiskGb: number;
 }
 

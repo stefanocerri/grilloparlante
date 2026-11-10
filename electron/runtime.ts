@@ -48,7 +48,7 @@ export function bootstrapPython(): string | undefined {
 }
 
 export class RuntimeManager {
-  status: RuntimeStatus = { state: "checking", message: "Controllo del motore voce…", canInstall: false };
+  status: RuntimeStatus = { state: "checking", message: "Controllo del narratore…", canInstall: false };
 
   python: string | null = null;
 
@@ -87,7 +87,7 @@ export class RuntimeManager {
       this.python = null;
       this.set({
         state: "missing",
-        message: "Il motore voce non è ancora installato.",
+        message: "Il narratore non è ancora installato.",
         detail: canInstall
           ? "Serve una sola volta: circa 5 GB tra PyTorch e il modello OmniVoice."
           : "Per installarlo serve Python 3.10 o più recente.",
@@ -116,12 +116,12 @@ export class RuntimeManager {
     if (health.ok) {
       this.python = python;
       const device = health.device === "mps" ? "chip Apple (GPU)" : health.device === "cuda" ? "GPU NVIDIA" : "CPU";
-      this.set({ state: "ready", message: `Motore voce pronto su ${device}.`, device: health.device, canInstall });
+      this.set({ state: "ready", message: `Narratore pronto su ${device}.`, device: health.device, canInstall });
     } else {
       this.python = null;
       this.set({
         state: "error",
-        message: "Il motore voce va riparato.",
+        message: "Il narratore va riparato.",
         detail: health.error,
         canInstall
       });
