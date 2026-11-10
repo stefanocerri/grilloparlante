@@ -62,6 +62,15 @@ Stile sobrio in bianco e nero con bordi sottili, ispirato alle dashboard per svi
 I colori sono variabili CSS in `frontend/src/styles/index.css`, i componenti di base (pulsanti, card, badge, campi)
 sono classi Tailwind nello stesso file. In basso una barra di stato mostra sempre narratore e Turso.
 
+## Voci da un campione
+
+Oltre alle quattro voci incluse puoi crearne di nuove: Impostazioni → **Voci** → "Nuova voce da un campione", oppure
+il riquadro "Nuova voce" quando scegli la voce di un libro. Carichi un audio di 10–30 secondi con una sola persona
+che parla (WAV, MP3, M4A, FLAC), le dai un nome e Grillo la clona con OmniVoice e crea un'anteprima. La
+trascrizione è facoltativa: se manca la ricava Whisper (scaricato la prima volta, circa 1,6 GB). Le voci create
+stanno in `~/Library/Application Support/Grillo parlante/voices/` (backend: `python -m app.cli voice-create`).
+Usa solo voci che hai il diritto di usare.
+
 ## Libreria
 
 La libreria si trova in `~/Documents/Grillo Parlante/books/`, con una cartella per libro o articolo:

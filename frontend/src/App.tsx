@@ -7,10 +7,16 @@ import { NewItem } from "./components/NewItem";
 import { Onboarding } from "./components/Onboarding";
 import { RuntimeSetup } from "./components/RuntimeSetup";
 import { Settings } from "./components/Settings";
+import { VoiceCreate } from "./components/VoiceCreate";
 import { Mark } from "./components/ui";
 import { useSnapshot } from "./lib/useSnapshot";
 
-type View = { kind: "home" } | { kind: "new"; filePath: string } | { kind: "book"; id: string } | { kind: "settings" };
+type View =
+  | { kind: "home" }
+  | { kind: "new"; filePath: string }
+  | { kind: "book"; id: string }
+  | { kind: "settings" }
+  | { kind: "voice-new"; returnTo: View };
 
 export function App() {
   const snapshot = useSnapshot();
@@ -34,7 +40,15 @@ export function App() {
   const book = view.kind === "book" ? snapshot.books.find((item) => item.id === view.id) : undefined;
   const engineReady = snapshot.runtime.state === "ready";
   const crumb =
-    view.kind === "new" ? "Nuovo" : view.kind === "settings" ? "Impostazioni" : view.kind === "book" ? book?.title : null;
+    view.kind === "new"
+      ? "Nuovo"
+      : view.kind === "settings"
+        ? "Impostazioni"
+        : view.kind === "voice-new"
+          ? "Nuova voce"
+          : view.kind === "book"
+            ? book?.title
+            : null;
   const home = () => setView({ kind: "home" });
 
   return (
@@ -65,8 +79,16 @@ export function App() {
       </header>
 
       <main className="min-h-0 flex-1 overflow-y-auto">
-        {view.kind === "settings" ? (
-          <Settings snapshot={snapshot} />
+        {view.kind === "voice-new" ? (
+          <VoiceCreate
+            snapshot={snapshot}
+            onDone={(voiceId) => {
+              localStorage.setItem("voiceId", JSON.stringify(voiceId));
+              setView(view.returnTo);
+            }}
+          />
+        ) : view.kind === "settings" ? (
+          <Settings snapshot={snapshot} onNewVoice={() => setView({ kind: "voice-new", returnTo: view })} />
         ) : !engineReady ? (
           <RuntimeSetup runtime={snapshot.runtime} />
         ) : view.kind === "new" ? (
@@ -74,6 +96,7 @@ export function App() {
             snapshot={snapshot}
             filePath={view.filePath}
             onChangeFile={(filePath) => setView({ kind: "new", filePath })}
+            onNewVoice={() => setView({ kind: "voice-new", returnTo: view })}
             onImported={(id) => setView({ kind: "book", id })}
           />
         ) : book ? (

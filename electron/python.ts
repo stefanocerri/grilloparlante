@@ -1,6 +1,6 @@
 import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import readline from "node:readline";
-import { backendRoot } from "./paths";
+import { backendRoot, userVoicesDir } from "./paths";
 
 export interface PythonEvent {
   type: string;
@@ -22,7 +22,7 @@ export function runBackend(
 ): PythonRun {
   const child = spawn(python, ["-m", "app.cli", ...args], {
     cwd: backendRoot(),
-    env: { ...process.env, PYTHONUNBUFFERED: "1", PYTHONWARNINGS: "ignore" },
+    env: { ...process.env, PYTHONUNBUFFERED: "1", PYTHONWARNINGS: "ignore", GRILLO_USER_VOICES_DIR: userVoicesDir() },
     detached: process.platform !== "win32"
   });
 

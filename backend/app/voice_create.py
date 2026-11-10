@@ -1,0 +1,156 @@
+"""Crea una nuova voce da un campione audio (clonazione con OmniVoice).
+
+Il campione viene pulito (silenzi, mono, 24 kHz) e tagliato a circa 15 secondi; se manca la trascrizione la ricava
+Whisper (scaricato la prima volta, circa 1,6 GB). Poi salva <id>.wav, <id>.txt e un'anteprima <id>.preview.mp3 nella
+cartella delle voci dell'utente e aggiunge la voce a voices.json.
+"""
+
+from __future__ import annotations
+
+import json
+import secrets
+from pathlib import Path
+
+import numpy as np
+
+from app.audio.mp3 import write_mp3
+from app.utils.events import EventEmitter
+from app.utils.files import slugify
+
+SAMPLE_RATE = 24000
+MIN_SECONDS = 4.0
+TARGET_SECONDS = 15.0
+MAX_WITH_TRANSCRIPT = 30.0
+PREVIEW_TEXT = "Ciao, sono la tua nuova voce. Da oggi posso leggerti libri, articoli e notizie, capitolo per capitolo."
+
+
+class VoiceError(Exception):
+  """Errore da mostrare all'utente così com'è."""
+
+
+def _cut_at_pause(audio: np.ndarray, seconds: float) -> np.ndarray:
+  """Taglia vicino a `seconds`, nel punto più silenzioso degli ultimi 3 secondi, per non spezzare una parola."""
+  end = int(seconds * SAMPLE_RATE)
+  if len(audio) <= end:
+    return audio
+  window = int(0.05 * SAMPLE_RATE)
+  start = max(window, end - 3 * SAMPLE_RATE)
+  energies = [float(np.mean(audio[i - window:i] ** 2)) for i in range(start, end, window)]
+  cut = start + int(np.argmin(energies)) * window
+  return audio[:cut]
+
+
+def prepare_sample(input_path: str, has_transcript: bool) -> np.ndarray:
+  import librosa
+  from omnivoice.utils.audio import load_audio
+
+  try:
+    audio = load_audio(input_path, SAMPLE_RATE)[0]
+  except Exception as error:  # formato non leggibile
+    raise VoiceError("Non riesco a leggere questo file audio. Prova con un WAV, MP3, M4A o FLAC.") from error
+  audio, _ = librosa.effects.trim(audio, top_db=35)
+  seconds = len(audio) / SAMPLE_RATE
+  if seconds < MIN_SECONDS:
+    raise VoiceError("Il campione è troppo corto: servono almeno 5 secondi di parlato, meglio 10–15.")
+  if has_transcript:
+    if seconds > MAX_WITH_TRANSCRIPT:
+      raise VoiceError(
+        "Con la trascrizione il campione deve durare al massimo 30 secondi. Accorcialo, oppure lascia vuota la "
+        "trascrizione: la ricavo io dai primi 15 secondi."
+      )
+  else:
+    audio = _cut_at_pause(audio, TARGET_SECONDS)
+  peak = float(np.max(np.abs(audio))) or 1.0
+  return (audio / peak * 0.9).astype(np.float32)
+
+
+def _read_index(voices_dir: Path) -> list[dict]:
+  try:
+    return json.loads((voices_dir / "voices.json").read_text(encoding="utf-8"))
+  except (OSError, ValueError):
+    return []
+
+
+def _write_index(voices_dir: Path, entries: list[dict]) -> None:
+  partial = voices_dir / "voices.json.part"
+  partial.write_text(json.dumps(entries, ensure_ascii=False, indent=2), encoding="utf-8")
+  partial.replace(voices_dir / "voices.json")
+
+
+def create_voice(
+  input_path: str,
+  name: str,
+  gender: str,
+  transcript: str | None,
+  voices_dir: str,
+  emitter: EventEmitter,
+  is_cancelled=lambda: False,
+) -> dict:
+  import soundfile as sf
+
+  from app.tts.omnivoice_engine import MODEL_ID, resolve_device, resolve_dtype
+
+  name = name.strip() or "Nuova voce"
+  transcript = (transcript or "").strip() or None
+  target = Path(voices_dir)
+  target.mkdir(parents=True, exist_ok=True)
+  voice_id = f"mia_{slugify(name, 24) or 'voce'}_{secrets.token_hex(3)}"
+
+  def step(progress: float, label: str) -> None:
+    if is_cancelled():
+      raise KeyboardInterrupt
+    emitter.emit("progress", {"progress": progress, "label": label})
+
+  step(0.05, "Preparo il campione…")
+  audio = prepare_sample(input_path, has_transcript=bool(transcript))
+
+  step(0.15, "Carico il narratore…")
+  from omnivoice import OmniVoice
+
+  device = resolve_device()
+  model = OmniVoice.from_pretrained(MODEL_ID, device_map=device, dtype=resolve_dtype(device))
+
+  if not transcript:
+    step(0.35, "Ascolto il campione per trascriverlo (la prima volta scarica Whisper, circa 1,6 GB)…")
+    model.load_asr_model()
+    transcript = model.transcribe((audio[np.newaxis, :], SAMPLE_RATE)).strip()
+    if len(transcript) < 10:
+      raise VoiceError("Nel campione non sento abbastanza parlato. Usa un audio con una sola persona che parla chiaramente.")
+
+  sample_path = target / f"{voice_id}.wav"
+  sf.write(str(sample_path), audio, SAMPLE_RATE, subtype="PCM_16")
+  (target / f"{voice_id}.txt").write_text(transcript, encoding="utf-8")
+
+  try:
+    step(0.6, "Creo la voce…")
+    prompt = model.create_voice_clone_prompt(ref_audio=str(sample_path), ref_text=transcript)
+    step(0.75, "Registro un'anteprima…")
+    preview = model.generate(text=PREVIEW_TEXT, language="it", voice_clone_prompt=prompt)[0]
+    write_mp3(np.asarray(preview, dtype=np.float32).squeeze(), SAMPLE_RATE, target / f"{voice_id}.preview.mp3")
+  except BaseException:
+    for suffix in (".wav", ".txt", ".preview.mp3"):
+      (target / f"{voice_id}{suffix}").unlink(missing_ok=True)
+    raise
+
+  entry = {
+    "id": voice_id,
+    "name": name,
+    "gender": gender if gender in ("uomo", "donna") else "altro",
+    "description": "Creata da un campione",
+    "custom": True,
+  }
+  entries = [item for item in _read_index(target) if item.get("id") != voice_id]
+  _write_index(target, entries + [entry])
+  step(1.0, "Voce pronta")
+  emitter.emit("result", {**entry, "transcript": transcript})
+  return entry
+
+
+def delete_voice(voice_id: str, voices_dir: str) -> None:
+  target = Path(voices_dir)
+  entries = _read_index(target)
+  if not any(item.get("id") == voice_id for item in entries):
+    raise VoiceError("Questa voce non è tra quelle create da te.")
+  _write_index(target, [item for item in entries if item.get("id") != voice_id])
+  for suffix in (".wav", ".txt", ".preview.mp3"):
+    (target / f"{voice_id}{suffix}").unlink(missing_ok=True)

@@ -52,6 +52,17 @@ def build_parser() -> argparse.ArgumentParser:
   convert.add_argument("--library", required=True)
 
   sub.add_parser("voices", help="Elenca le voci disponibili (JSON).")
+
+  voice_create = sub.add_parser("voice-create", help="Crea una voce da un campione audio.")
+  voice_create.add_argument("--input", required=True, help="WAV, MP3, M4A o FLAC con una persona che parla.")
+  voice_create.add_argument("--name", required=True)
+  voice_create.add_argument("--gender", default="altro", choices=["uomo", "donna", "altro"])
+  voice_create.add_argument("--transcript", default="", help="Cosa dice il campione (facoltativo: altrimenti Whisper).")
+  voice_create.add_argument("--voices-dir", required=True)
+
+  voice_delete = sub.add_parser("voice-delete", help="Elimina una voce creata da un campione.")
+  voice_delete.add_argument("--id", required=True)
+  voice_delete.add_argument("--voices-dir", required=True)
   sub.add_parser("prefetch", help="Scarica il modello vocale.")
   return parser
 
@@ -71,6 +82,27 @@ def main(argv: list[str] | None = None) -> int:
       for v in list_voices()
     ], ensure_ascii=False))
     return 0
+
+  if args.command in ("voice-create", "voice-delete"):
+    from app.voice_create import VoiceError, create_voice, delete_voice
+
+    try:
+      if args.command == "voice-delete":
+        delete_voice(args.id, args.voices_dir)
+        emitter.emit("result", {"id": args.id})
+      else:
+        create_voice(args.input, args.name, args.gender, args.transcript, args.voices_dir, emitter,
+                     is_cancelled=lambda: cancel_requested)
+      return 0
+    except KeyboardInterrupt:
+      emitter.emit("cancelled", {})
+      return 0
+    except VoiceError as error:
+      emitter.error(str(error))
+      return 1
+    except Exception as error:  # pragma: no cover - confine del processo
+      emitter.error("Non sono riuscito a creare la voce.", traceback.format_exc().strip())
+      return 1
 
   if args.command == "prefetch":
     from app.tts.omnivoice_engine import prefetch_model

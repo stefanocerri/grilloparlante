@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
-import type { AppQr, AppSnapshot, ThemeChoice, ImportRequest, SystemCheck, TursoSettings, TursoSetupOutcome } from "../shared/contracts";
+import type { AppQr, AppSnapshot, ThemeChoice, VoiceCreateRequest, ImportRequest, SystemCheck, TursoSettings, TursoSetupOutcome } from "../shared/contracts";
 
 function subscribe<T>(channel: string, listener: (payload: T) => void) {
   const wrapped = (_event: unknown, payload: T) => listener(payload);
@@ -27,6 +27,11 @@ const api = {
   pickBook: () => ipcRenderer.invoke("dialog:pick-book") as Promise<string | null>,
   confirm: (message: string, detail?: string) => ipcRenderer.invoke("dialog:confirm", message, detail) as Promise<boolean>,
   pathForFile: (file: File) => webUtils.getPathForFile(file),
+  pickVoiceSample: () => ipcRenderer.invoke("voice:pick-sample") as Promise<string | null>,
+  createVoice: (request: VoiceCreateRequest) => ipcRenderer.invoke("voice:create", request) as Promise<string>,
+  cancelVoice: () => ipcRenderer.invoke("voice:cancel") as Promise<void>,
+  dismissVoiceJob: () => ipcRenderer.invoke("voice:dismiss") as Promise<void>,
+  deleteVoice: (voiceId: string) => ipcRenderer.invoke("voice:delete", voiceId) as Promise<void>,
   importBook: (request: ImportRequest) => ipcRenderer.invoke("book:import", request) as Promise<string>,
   convert: (bookId: string, chapters: number[]) => ipcRenderer.invoke("book:convert", bookId, chapters) as Promise<void>,
   cancelQueue: () => ipcRenderer.invoke("queue:cancel") as Promise<void>,

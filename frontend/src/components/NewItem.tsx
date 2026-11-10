@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AppSnapshot } from "@shared/contracts";
-import { FileText, Pause, Play } from "lucide-react";
+import { FileText, Pause, Play, Plus } from "lucide-react";
 
 const SPEEDS = [0.9, 1.0, 1.1, 1.2];
 
@@ -17,12 +17,14 @@ export function NewItem({
   snapshot,
   filePath,
   onChangeFile,
-  onImported
+  onImported,
+  onNewVoice
 }: {
   snapshot: AppSnapshot;
   filePath: string;
   onChangeFile: (filePath: string) => void;
   onImported: (bookId: string) => void;
+  onNewVoice: () => void;
 }) {
   const [voiceId, setVoiceId] = useState<string>(() => remembered("voiceId", snapshot.voices[0]?.id ?? ""));
   const [speed, setSpeed] = useState<number>(() => remembered("speed", 1.0));
@@ -111,6 +113,18 @@ export function NewItem({
               </div>
             );
           })}
+          <button
+            onClick={onNewVoice}
+            className="flex items-center gap-2 rounded-lg border border-dashed border-ink/15 p-2 text-left text-mute transition-colors hover:border-ink/30 hover:bg-subtle hover:text-ink"
+          >
+            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-line bg-bg">
+              <Plus size={12} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-medium leading-tight">Nuova voce</p>
+              <p className="truncate text-2xs">da un campione audio</p>
+            </div>
+          </button>
         </div>
       </section>
 

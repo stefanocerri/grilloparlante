@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { AppSnapshot, ThemeChoice } from "@shared/contracts";
 import { FolderOpen, Monitor, Moon, Power, RefreshCw, Sun, Wand2 } from "lucide-react";
 import { AppQrs, Disclosure, TursoForm, TursoSetup, tursoConfigured } from "./TursoForm";
+import { CustomVoices } from "./VoiceCreate";
 
 function Section({ title, description, children, action }: { title: string; description?: string; children: ReactNode; action?: ReactNode }) {
   return (
@@ -18,7 +19,7 @@ function Section({ title, description, children, action }: { title: string; desc
   );
 }
 
-export function Settings({ snapshot }: { snapshot: AppSnapshot }) {
+export function Settings({ snapshot, onNewVoice }: { snapshot: AppSnapshot; onNewVoice: () => void }) {
   const syncDot =
     snapshot.sync.state === "error"
       ? "bg-danger"
@@ -71,6 +72,10 @@ export function Settings({ snapshot }: { snapshot: AppSnapshot }) {
 
       <Section title="App di ascolto" description="Un QR per ogni app del telefono. Nel QR c'è solo la chiave di sola lettura.">
         <AppQrs snapshot={snapshot} />
+      </Section>
+
+      <Section title="Voci" description="Oltre alle quattro voci incluse puoi crearne di nuove da un campione audio.">
+        <CustomVoices snapshot={snapshot} onNew={onNewVoice} />
       </Section>
 
       <Section title="Aspetto">

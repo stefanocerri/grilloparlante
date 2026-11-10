@@ -13,6 +13,13 @@ export function libraryDir() {
   return dir;
 }
 
+/** Voci create dall'utente da un campione: ~/Library/Application Support/Grillo parlante/voices */
+export function userVoicesDir() {
+  const dir = path.join(app.getPath("userData"), "voices");
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
 export function userDataFile(name: string) {
   return path.join(app.getPath("userData"), name);
 }

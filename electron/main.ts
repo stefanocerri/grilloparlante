@@ -3,9 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
 import QRCode from "qrcode";
-import type { AppQr, AppSnapshot, ThemeChoice, ImportRequest, ListeningApp, TursoSettings, TursoSetupOutcome, VoiceInfo } from "../shared/contracts";
+import type { AppQr, AppSnapshot, ThemeChoice, VoiceCreateRequest, ImportRequest, ListeningApp, TursoSettings, TursoSetupOutcome, VoiceInfo } from "../shared/contracts";
 import { bookDir, deleteBook, listBooks, readBook, toView } from "./library";
-import { backendRoot, libraryDir, readJson, userDataFile, writeJson } from "./paths";
+import { backendRoot, libraryDir, readJson, userDataFile, userVoicesDir, writeJson } from "./paths";
+import { VoiceCreator } from "./voiceCreator";
 import { getPopover, hidePopover, popoverBackground, withPopoverPinned } from "./popover";
 import { ConversionQueue } from "./queue";
 import { RuntimeManager } from "./runtime";
@@ -89,14 +90,23 @@ const queue = new ConversionQueue({
   }
 });
 
+const voiceCreator = new VoiceCreator(() => runtime.python, broadcast, (line) => {
+  if (line.trim()) console.log(`[voce] ${line}`);
+});
+
+/** Voci incluse nell'app più quelle create dall'utente da un campione. */
 function voices(): VoiceInfo[] {
-  const entries = readJson<Omit<VoiceInfo, "previewUrl">[]>(path.join(backendRoot(), "voices", "voices.json"), []);
-  return entries.map((voice) => ({
-    ...voice,
-    previewUrl: fs.existsSync(path.join(backendRoot(), "voices", `${voice.id}.preview.mp3`))
-      ? `grillo://voices/${voice.id}.preview.mp3`
-      : undefined
-  }));
+  const list = (dir: string, host: string, custom: boolean) =>
+    readJson<Omit<VoiceInfo, "previewUrl">[]>(path.join(dir, "voices.json"), [])
+      .filter((voice) => fs.existsSync(path.join(dir, `${voice.id}.wav`)))
+      .map((voice) => ({
+        ...voice,
+        custom,
+        previewUrl: fs.existsSync(path.join(dir, `${voice.id}.preview.mp3`))
+          ? `grillo://${host}/${voice.id}.preview.mp3`
+          : undefined
+      }));
+  return [...list(path.join(backendRoot(), "voices"), "voices", false), ...list(userVoicesDir(), "uservoices", true)];
 }
 
 function snapshot(): AppSnapshot {
@@ -105,6 +115,7 @@ function snapshot(): AppSnapshot {
     onboarded,
     runtime: runtime.status,
     voices: voices(),
+    voiceJob: voiceCreator.job,
     books: listBooks().map((book) =>
       toView(book, {
         uploaded: sync.uploadedChapters(book.id),
@@ -134,7 +145,12 @@ function broadcast() {
 function serveFile(request: Request): Response {
   const url = new URL(request.url);
   const parts = url.pathname.split("/").filter(Boolean).map(decodeURIComponent);
-  const root = url.host === "voices" ? path.join(backendRoot(), "voices") : path.join(libraryDir(), "books");
+  const root =
+    url.host === "voices"
+      ? path.join(backendRoot(), "voices")
+      : url.host === "uservoices"
+        ? userVoicesDir()
+        : path.join(libraryDir(), "books");
   const file = path.resolve(root, ...parts);
   if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
     return new Response("Non trovato", { status: 404 });
@@ -264,6 +280,24 @@ ipcMain.handle("dialog:confirm", (_event, message: string, detail?: string) =>
     return result.response === 0;
   })
 );
+
+ipcMain.handle("voice:pick-sample", () =>
+  withPopoverPinned(async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ["openFile"],
+      filters: [{ name: "Audio", extensions: ["wav", "mp3", "m4a", "flac", "ogg", "aac"] }]
+    });
+    return result.canceled ? null : result.filePaths[0];
+  })
+);
+
+ipcMain.handle("voice:create", (_event, request: VoiceCreateRequest) => voiceCreator.create(request));
+
+ipcMain.handle("voice:cancel", () => voiceCreator.cancel());
+
+ipcMain.handle("voice:dismiss", () => voiceCreator.dismiss());
+
+ipcMain.handle("voice:delete", (_event, voiceId: string) => voiceCreator.delete(voiceId));
 
 ipcMain.handle("book:import", async (_event, request: ImportRequest) => {
   const bookId = await queue.importBook(request);

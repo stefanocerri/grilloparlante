@@ -3,9 +3,28 @@
 export interface VoiceInfo {
   id: string;
   name: string;
-  gender: "uomo" | "donna";
+  gender: "uomo" | "donna" | "altro";
   description: string;
   previewUrl?: string;
+  /** Creata dall'utente da un campione audio (si può eliminare). */
+  custom?: boolean;
+}
+
+export interface VoiceCreateRequest {
+  /** WAV, MP3, M4A o FLAC con una sola persona che parla. */
+  filePath: string;
+  name: string;
+  gender: "uomo" | "donna" | "altro";
+  /** Cosa dice il campione. Vuoto: lo trascrive Whisper. */
+  transcript?: string;
+}
+
+export interface VoiceJob {
+  state: "running" | "done" | "error";
+  name: string;
+  progress: number;
+  label: string;
+  voiceId?: string;
 }
 
 export type ChapterStatus = "pending" | "converting" | "ready";
@@ -155,6 +174,8 @@ export interface AppSnapshot {
   onboarded: boolean;
   runtime: RuntimeStatus;
   voices: VoiceInfo[];
+  /** Creazione di una voce da un campione, se in corso o appena finita. */
+  voiceJob: VoiceJob | null;
   books: BookView[];
   queue: QueueState;
   turso: TursoSettings;
