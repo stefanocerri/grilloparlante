@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { resetIntro } from "../lib/useIntro";
 import type { AppSnapshot, ThemeChoice } from "@shared/contracts";
 import { FolderOpen, Monitor, Moon, Power, Sun, Wand2 } from "lucide-react";
 import { ChannelList } from "./Channels";
@@ -52,7 +53,11 @@ export function Settings({ snapshot, onNewVoice }: { snapshot: AppSnapshot; onNe
       </Section>
 
       <div className="flex gap-2">
-        <button className="btn-secondary flex-1" onClick={() => void window.grillo.restartOnboarding()}>
+        <button className="btn-secondary flex-1" onClick={() => {
+            resetIntro();
+            void window.grillo.restartOnboarding();
+          }}
+        >
           <Wand2 size={14} /> Configurazione guidata
         </button>
         <button className="btn-secondary flex-1" onClick={() => void window.grillo.quit()}>

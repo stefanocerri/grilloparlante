@@ -22,7 +22,7 @@ type View =
 export function App() {
   const snapshot = useSnapshot();
   const [view, setView] = useState<View>({ kind: "home" });
-  useIntro();
+  useIntro(snapshot?.onboarded);
 
   // File trascinato sull'icona nella barra dei menu.
   useEffect(() => window.grillo.onFileDropped((filePath) => setView({ kind: "new", filePath })), []);
