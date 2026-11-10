@@ -169,6 +169,6 @@ macOS avvisa che le app Intel non saranno più supportate). L'app non è firmata
 al primo avvio aprila con tasto destro → **Apri**. Se macOS dice che è danneggiata (succede ai file scaricati),
 nel Terminale: `xattr -dr com.apple.quarantine "/Applications/Grillo parlante.app"`.
 
-Icona dell'app: il grillo, `assets/icon.svg` (sorgente) e `assets/icon.png` (1024 px); nella barra dei menu la sagoma
-`assets/tray.svg`. I PNG si rigenerano con `node scripts/build-icons.cjs`, il modello 3D con `node scripts/model/build.cjs`. Per provare tutto c'è un PDF breve
+Icona dell'app: la sagoma del grillo in bianco su nero, `assets/icon.svg` (sorgente) e `assets/icon.png` (1024 px); la
+stessa sagoma, `assets/tray.svg`, fa da icona nella barra dei menu e da logo nell'app. I PNG si rigenerano con `node scripts/build-icons.cjs`, il modello 3D con `node scripts/model/build.cjs`. Per provare tutto c'è un PDF breve
 con tre capitoli: `backend/examples/il-grillo-e-la-lanterna.pdf`. Dettagli tecnici in [docs/architecture.md](docs/architecture.md).

@@ -1,10 +1,11 @@
 import { lazy, Suspense, useState, type ReactNode } from "react";
 import { Check, Copy, Loader2, X } from "lucide-react";
-import iconUrl from "../../../assets/icon.svg";
+import markUrl from "../../../assets/tray.svg";
 
-/** Logo: il grillo dell'icona dell'app (assets/icon.svg), lo stesso disegnato sul modello 3D. */
-export function Mark({ size = 26 }: { size?: number }) {
-  return <img src={iconUrl} alt="" draggable={false} className="shrink-0" style={{ width: size, height: size }} />;
+/** Logo: la sagoma del grillo (assets/tray.svg) nel colore del testo, quindi nera sul chiaro e bianca sullo scuro. */
+export function Mark({ size = 24 }: { size?: number }) {
+  const mask = `url("${markUrl}") center / contain no-repeat`;
+  return <span className="inline-block shrink-0 bg-ink" style={{ width: size, height: size, mask, WebkitMask: mask }} />;
 }
 
 export function Spinner({ size = 14, className = "" }: { size?: number; className?: string }) {
