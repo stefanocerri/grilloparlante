@@ -18,7 +18,7 @@ from app.extractors.text_extractor import extract_text_file
 from app.file_detector import detect_file_type
 from app.jobs.models import Chapter, ExtractedDocument
 from app.library import BookStore, make_book_id, now_iso
-from app.text_cleanup import clean_for_speech
+from app.text_cleanup import clean_for_speech, separate_title
 from app.utils.events import EventEmitter
 from app.voices import get_voice
 
@@ -98,7 +98,7 @@ class ImportJob:
         mode = "parti di lunghezza simile (nessun capitolo trovato)"
 
     for position, chapter in enumerate(chapters):
-      chapter.text = clean_for_speech(chapter.text)
+      chapter.text = separate_title(clean_for_speech(chapter.text), chapter.title)
       if position < len(document.section_meta):
         chapter.meta = document.section_meta[position]
     chapters = [chapter for chapter in chapters if chapter.text]
