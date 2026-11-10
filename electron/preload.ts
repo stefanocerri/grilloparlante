@@ -44,7 +44,7 @@ const api = {
   deleteBook: (bookId: string) => ipcRenderer.invoke("book:delete", bookId) as Promise<void>,
   setTargets: (bookId: string, targets: string[]) => ipcRenderer.invoke("book:targets", bookId, targets) as Promise<void>,
   addChannel: (name: string, appUrl: string) => ipcRenderer.invoke("channel:add", name, appUrl) as Promise<string>,
-  updateChannel: (id: string, patch: { name?: string; appUrl?: string }) =>
+  updateChannel: (id: string, patch: { name?: string; appUrl?: string; rescanDone?: boolean }) =>
     ipcRenderer.invoke("channel:update", id, patch) as Promise<void>,
   removeChannel: (id: string) => ipcRenderer.invoke("channel:remove", id) as Promise<void>,
   hasPlatformToken: () => ipcRenderer.invoke("channel:has-token") as Promise<boolean>,
