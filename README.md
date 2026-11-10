@@ -11,8 +11,7 @@ file sull'icona per importarlo, tasto destro per uscire. Mentre converte, accant
 3. **Converti** quando vuoi: un capitolo, "fino al capitolo N" o tutto. Se chiudi l'app, la conversione
    riparte da dove era rimasta.
 4. **Ascolta sul telefono**: ogni capitolo pronto viene caricato sul tuo database Turso e le app di ascolto
-   ([ilmatta](https://github.com/stefanocerri/ilmatta), [fomo](https://github.com/stefanocerri/fomo)) lo
-   scaricano da lì, anche per l'ascolto offline. Le notizie con `expiresAt` passato vengono tolte da Turso; sul
+   che hai collegato lo scaricano da lì, anche per l'ascolto offline. Le notizie con `expiresAt` passato vengono tolte da Turso; sul
    Mac restano.
 
 Tutto gira sul Mac e senza costi: la sintesi usa [OmniVoice](https://huggingface.co/k2-fsa/OmniVoice) in locale,
@@ -103,15 +102,15 @@ mandarli alle app di ascolto per il telefono: ogni app collegata è un **canale*
 Turso, e riceve solo i libri destinati a lei. Le destinazioni si scelgono quando importi un file ("Dove lo ascolti")
 e si cambiano dalla scheda del libro; togliere un'app toglie il libro dal suo database, non dal Mac.
 
-Predefinite: [ilmatta](https://github.com/stefanocerri/ilmatta) (`https://ilmatta.vercel.app`) e
-[fomo](https://github.com/stefanocerri/fomo) (`https://fomo.vercel.app`). Altre si aggiungono da Impostazioni →
-App collegate; per crearne una nuova si parte dal guscio [skal](https://github.com/stefanocerri/skal).
+Non ci sono app predefinite: si aggiungono da Impostazioni → App collegate (nome e indirizzo). Per crearne una
+nuova si parte dal guscio [skal](https://github.com/stefanocerri/skal).
 
 ### Collegare un'app
 
 1. Crea un account gratuito su [turso.tech](https://app.turso.tech) e, nelle impostazioni della dashboard
    (sezione **API Tokens**), un *Platform API token*.
-2. In Grillo (guida, passo "Telefono", oppure Impostazioni → App collegate) incollalo e premi **Collega**.
+2. In Grillo (guida, passo "Telefono", oppure Impostazioni → App collegate) aggiungi l'app, incolla il token e
+   premi **Collega**.
 3. Inquadra il QR dell'app con il telefono e installala (Condividi → Aggiungi alla schermata Home).
 
 Per ogni app Grillo crea (o riusa) il database `grillo-<app>` con la

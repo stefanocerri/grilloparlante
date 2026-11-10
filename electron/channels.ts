@@ -15,11 +15,6 @@ import { readJson, userDataFile, writeJson } from "./paths";
 
 // --- Archivio dei canali -------------------------------------------------------
 
-/** App di ascolto predefinite: pubblicate su Vercel, da collegare con un Platform API token. */
-const DEFAULT_CHANNELS: Channel[] = [
-  { id: "ilmatta", name: "ilmatta", appUrl: "https://ilmatta.vercel.app", db: null },
-  { id: "fomo", name: "fomo", appUrl: "https://fomo.vercel.app", db: null }
-];
 const LEGACY_PWA_URL = "https://grilloparlante.vercel.app";
 
 interface StoredSettings {
@@ -43,9 +38,9 @@ export function channelId(name: string) {
 }
 
 /**
- * Canali e destinazioni dei libri, in settings.json.
- * Migrazione: il vecchio database unico diventa il canale ilmatta (con la chiave di sola lettura per l'app)
- * e tutti i libri già presenti restano destinati a ilmatta, così non cambia nulla per chi lo usava.
+ * Canali e destinazioni dei libri, in settings.json. Nessuna app predefinita: si aggiungono dalle Impostazioni.
+ * Migrazione: chi usava il vecchio database unico se lo ritrova come canale ilmatta (con la chiave di sola
+ * lettura per l'app) e tutti i libri già presenti restano destinati a lui, così non cambia nulla.
  */
 export class ChannelStore {
   channels: Channel[];
@@ -62,20 +57,23 @@ export class ChannelStore {
       this.targets = stored.targets ?? {};
       return;
     }
-    this.channels = DEFAULT_CHANNELS.map((channel) => ({ ...channel }));
+    this.channels = [];
     this.targets = {};
     const legacy = stored.turso;
     if (legacy?.url && legacy.writeToken) {
-      const ilmatta = this.channels[0];
-      ilmatta.db = {
-        name: "grillo",
-        url: legacy.url,
-        token: legacy.writeToken,
-        appToken: legacy.readToken || legacy.writeToken,
-        appCanWrite: !legacy.readToken
-      };
       const oldUrl = legacy.apps?.find((app) => app.id === "ilmatta")?.url || legacy.pwaUrl;
-      if (oldUrl && oldUrl.replace(/\/+$/, "") !== LEGACY_PWA_URL) ilmatta.appUrl = oldUrl;
+      this.channels.push({
+        id: "ilmatta",
+        name: "ilmatta",
+        appUrl: oldUrl && oldUrl.replace(/\/+$/, "") !== LEGACY_PWA_URL ? oldUrl : "https://ilmatta.vercel.app",
+        db: {
+          name: "grillo",
+          url: legacy.url,
+          token: legacy.writeToken,
+          appToken: legacy.readToken || legacy.writeToken,
+          appCanWrite: !legacy.readToken
+        }
+      });
       for (const book of listBooks()) this.targets[book.id] = ["ilmatta"];
       // Il registro dei caricamenti del database unico vale per ilmatta: niente da ricaricare.
       const oldLedger = userDataFile("turso-sync.json");

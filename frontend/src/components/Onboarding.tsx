@@ -521,17 +521,26 @@ function PhoneSetup({ snapshot }: { snapshot: AppSnapshot }) {
   return (
     <>
       <Title title="Scarica l'app sul telefono">
-        Gli audiolibri si ascoltano sul telefono, anche offline. Ogni app ({names}) ha il suo database gratuito su
-        Turso e riceve solo i libri che le mandi; dal telefono puoi anche mandare PDF a Grillo.
+        Gli audiolibri si ascoltano sul telefono, anche offline. Ogni app ha il suo database gratuito su Turso e riceve
+        solo i libri che le mandi; dal telefono puoi anche mandare PDF a Grillo.
       </Title>
-      <ol>
-        <Step n={1} title={missing.length ? "Collega le app" : "App collegate"}>
-          {missing.length > 0 && <ConnectChannels ids={missing} label={`Collega ${names}`} />}
-        </Step>
-        <Step n={2} title="Inquadra il QR e installa l'app">
-          <ChannelList snapshot={snapshot} compact />
-        </Step>
-      </ol>
+      {snapshot.channels.length === 0 ? (
+        <div className="space-y-3">
+          <p className="text-xs leading-relaxed text-mute">
+            Aggiungi la tua app di ascolto (nome e indirizzo), poi collegala. Puoi anche farlo più tardi dalle Impostazioni.
+          </p>
+          <ChannelList snapshot={snapshot} />
+        </div>
+      ) : (
+        <ol>
+          <Step n={1} title={missing.length ? "Collega le app" : "App collegate"}>
+            {missing.length > 0 && <ConnectChannels ids={missing} label={`Collega ${names}`} />}
+          </Step>
+          <Step n={2} title="Inquadra il QR e installa l'app">
+            <ChannelList snapshot={snapshot} compact />
+          </Step>
+        </ol>
+      )}
     </>
   );
 }
