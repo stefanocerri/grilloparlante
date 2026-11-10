@@ -417,12 +417,13 @@ export class ChannelLink {
     try {
       await this.sync.ensureSchema();
       const client = this.sync.client();
+      // Prima la casella, poi lo stato: così il semaforo riflette subito le conversioni appena avviate.
+      await this.processRequests(channel, client).catch((error: Error) => this.hooks.log(`[${channel.id}] casella: ${error.message}`));
       await client.query(
         `INSERT INTO grillo_status (id, seen_at, json) VALUES (1, ?, ?)
          ON CONFLICT(id) DO UPDATE SET seen_at = excluded.seen_at, json = excluded.json`,
         [new Date().toISOString(), JSON.stringify(this.hooks.status(channel))]
       );
-      await this.processRequests(channel, client);
     } catch (error) {
       this.hooks.log(`[${channel.id}] ${(error as Error).message}`);
     } finally {
