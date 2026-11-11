@@ -156,6 +156,8 @@ export class ChannelStore {
 
 interface BookSyncRecord {
   chapters: Record<string, number>; // indice -> dimensione MP3 caricata
+  /** indice -> dimensione MP3 a cui si riferisce il testo caricato in chapter_text (assente nei registri vecchi). */
+  texts?: Record<string, number>;
   coverUploaded: boolean;
   metaUpdatedAt: string;
 }
@@ -163,6 +165,24 @@ interface BookSyncRecord {
 type SyncLedger = Record<string, BookSyncRecord>;
 
 const RETRY_MS = 5 * 60 * 1000;
+
+/**
+ * Testo del capitolo per le app (tabella chapter_text): quello di text/NNN.txt, cioè ciò che legge la voce, ma
+ * con i ritocchi solo da lettura: niente numeri di pagina isolati, parole spezzate a fine riga riunite, a capo
+ * dentro i paragrafi tolti. Paragrafi separati da una riga vuota. Le cifre restano cifre.
+ */
+export function chapterTextForApps(raw: string): string {
+  return raw
+    .replace(/\r\n?/g, "\n")
+    .replace(/\u00a0/g, " ")
+    .replace(/^\s*\d{1,4}\s*$/gm, "")
+    .replace(/(\p{L})[-\u00ad]\s*\n\s*(\p{L})/gu, "$1$2")
+    .replace(/(?<!\n)\n(?!\n)/g, " ")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 /** Articoli e notizie con `expiresAt` passato non restano su Turso. */
 export function isExpired(book: Book, now = Date.now()): boolean {
@@ -324,10 +344,33 @@ export class ChannelSync {
       }
       record.chapters[chapter.index] = size;
       writeJson(this.ledgerFile, this.ledger);
+      await this.uploadText(client, book.id, chapter.index, size, record, dir);
       await this.uploadMeta(client, book, record, dir);
     }
 
+    // Capitoli caricati prima che ci fosse chapter_text: il testo si aggiunge ora, senza ricaricare l'audio.
+    for (const chapter of book.chapters) {
+      const size = record.chapters[chapter.index];
+      if (size && record.texts?.[chapter.index] !== size) {
+        await this.uploadText(client, book.id, chapter.index, size, record, dir);
+      }
+    }
+
     if (record.metaUpdatedAt !== book.updatedAt) await this.uploadMeta(client, book, record, dir);
+  }
+
+  /** Testo del capitolo in chapter_text, così le app possono mostrarlo (o usarlo) accanto all'audio. */
+  private async uploadText(client: TursoClient, bookId: string, index: number, size: number, record: BookSyncRecord, dir: string) {
+    const file = path.join(dir, "text", `${String(index).padStart(3, "0")}.txt`);
+    if (!fs.existsSync(file)) return;
+    const text = chapterTextForApps(fs.readFileSync(file, "utf8"));
+    await client.query(
+      `INSERT INTO chapter_text (book_id, idx, text) VALUES (?, ?, ?)
+       ON CONFLICT(book_id, idx) DO UPDATE SET text = excluded.text`,
+      [bookId, index, text]
+    );
+    record.texts = { ...(record.texts ?? {}), [index]: size };
+    writeJson(this.ledgerFile, this.ledger);
   }
 
   /** Scheda per l'app: solo i capitoli già caricati risultano "ready". */
