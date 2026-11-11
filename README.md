@@ -79,6 +79,10 @@ il riquadro "Nuova voce" quando scegli la voce di un libro. Carichi un audio di 
 che parla (WAV, MP3, M4A, FLAC), le dai un nome e Grillo la clona con OmniVoice e crea un'anteprima. La
 trascrizione è facoltativa: se manca la ricava Whisper (scaricato la prima volta, circa 1,6 GB). Le voci create
 stanno in `~/Library/Application Support/Grillo parlante/voices/` (backend: `python -m app.cli voice-create`).
+Le voci create prima del taglio in una pausa vera (che ripetevano un pezzo di parola, tipo «ancora un», all'inizio
+di ogni frase) si riparano da sole alla prima conversione: il campione si accorcia all'ultima pausa e Whisper lo
+ritrascrive; gli originali restano come `<id>.orig.wav` e `<id>.orig.txt`. I capitoli già convertiti con la voce
+difettosa restano com'erano.
 Usa solo voci che hai il diritto di usare.
 
 ## Libreria

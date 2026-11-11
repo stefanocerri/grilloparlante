@@ -58,6 +58,8 @@ class OmniVoiceEngine:
     self.device = resolve_device()
     self._model: Any = None
     self._prompt: Any = None
+    # True se al caricamento la voce (creata da un campione vecchio) è stata riparata.
+    self.repaired = False
 
   def load(self) -> None:
     if self._model is not None:
@@ -72,9 +74,21 @@ class OmniVoiceEngine:
       device_map=self.device,
       dtype=resolve_dtype(self.device),
     )
+    transcript = self.voice.transcript
+    if self.voice.custom:
+      from app.voice_create import repair_voice_sample
+
+      try:
+        fixed = repair_voice_sample(self._model, self.voice.id, self.voice.sample_path, transcript, log=self.log)
+      except Exception as error:  # la riparazione non deve fermare la conversione
+        self.log(f"Controllo della voce non riuscito: {error}")
+        fixed = None
+      if fixed:
+        transcript = fixed
+        self.repaired = True
     self._prompt = self._model.create_voice_clone_prompt(
       ref_audio=str(self.voice.sample_path),
-      ref_text=self.voice.transcript,
+      ref_text=transcript,
     )
     self.log(f"OmniVoice pronto in {time.perf_counter() - started:.1f}s (voce {self.voice.name})")
 

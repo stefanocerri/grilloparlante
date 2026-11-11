@@ -63,6 +63,13 @@ class ConversionJob:
 
     voice = get_voice(book["voice"]["id"])
     engine = OmniVoiceEngine(voice, book.get("speed", 1.0), log=lambda m: self.emitter.log("info", m))
+    if voice.custom:
+      # Le voci da campione si controllano (ed eventualmente riparano) al caricamento: se la voce è cambiata,
+      # i pezzi già pronti in work/ sono stati fatti con quella difettosa e vanno rifatti.
+      engine.load()
+      if engine.repaired:
+        for leftover in self.store.work_dir.glob("*.wav"):
+          leftover.unlink(missing_ok=True)
     total_chars = sum(entry["chars"] for entry in todo) or 1
     done_chars = 0
     session = {"chars": 0, "started": time.monotonic()}
