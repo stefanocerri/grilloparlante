@@ -271,6 +271,10 @@ export interface AppSnapshot {
   libraryDir: string;
   /** Cerca da solo editore, copertina, descrizione... su Google Books e Open Library. */
   lookupOnline: boolean;
+  /** Libri in coda per la ricerca online. */
+  lookupPending: number;
+  /** Libri (anche già convertiti) senza un libro trovato online né titolo corretto a mano. */
+  unlinkedBooks: number;
 }
 
 export interface ImportRequest {

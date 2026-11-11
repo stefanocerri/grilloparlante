@@ -88,6 +88,11 @@ Grillo raccoglie da solo editore, anno, lingua, ISBN, numero di pagine, argoment
    risultati, la matita apre il modulo per correggere titolo, autore, editore, anno, lingua, ISBN, argomenti,
    descrizione e copertina. Le correzioni a mano vincono sempre; "Ripristina automatiche" le toglie.
 
+Tutto questo vale anche **dopo la conversione**: l'audio non contiene titolo né autore, quindi collegare o correggere
+i dati non richiede di riconvertire nulla, e le app collegate ricevono subito scheda e copertina nuove. Le ricerche
+fallite (per esempio Mac offline all'importazione) si ritentano da sole all'avvio e ogni ora; in Impostazioni →
+**Informazioni sui libri** "Collega ora" cerca i dati per tutti i libri che non li hanno ancora.
+
 Ordine: a mano → online per titolo e autore → file per gli altri campi → online. Le informazioni online e a mano
 stanno in `info.json` nella cartella del libro (il backend non lo tocca, quindi si può correggere anche mentre
 converte); la cartella e l'id del libro non cambiano. Le app collegate ricevono titolo, autore, `info` e copertina

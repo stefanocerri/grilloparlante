@@ -73,6 +73,13 @@ export function BookInfoPanel({ book, wide = false }: { book: BookView; wide?: b
 
         {info.description && <Description text={info.description} source={sources.description} wide={wide} />}
 
+        {sources.title !== "online" && sources.title !== "manual" && lookup?.state !== "searching" && (
+          <button className="btn-secondary btn-sm w-full" onClick={() => setMode("search")}>
+            <Globe size={12} /> Collega i dati online
+            {book.readyChapters > 0 && <span className="font-normal text-faint">· l'audio resta com'è</span>}
+          </button>
+        )}
+
         {!rows.length && !info.description && lookup?.state !== "searching" && (
           <p className="text-xs leading-relaxed text-mute">
             {lookup?.state === "error"

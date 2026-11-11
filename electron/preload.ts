@@ -44,6 +44,8 @@ const api = {
   deleteBook: (bookId: string) => ipcRenderer.invoke("book:delete", bookId) as Promise<void>,
   /** Informazioni sul libro: ricerca online (anche con domanda libera), scelta, correzioni a mano. */
   setLookupOnline: (enabled: boolean) => ipcRenderer.invoke("lookup:set", enabled) as Promise<void>,
+  /** Cerca le informazioni per tutti i libri ancora senza (anche già convertiti). Restituisce quanti. */
+  lookupAll: () => ipcRenderer.invoke("lookup:all") as Promise<number>,
   searchBookInfo: (bookId: string, query?: { title?: string; author?: string; isbn?: string; text?: string }) =>
     ipcRenderer.invoke("book:info-search", bookId, query) as Promise<OnlineMatch[]>,
   applyBookInfo: (bookId: string, match: OnlineMatch) => ipcRenderer.invoke("book:info-apply", bookId, match) as Promise<void>,

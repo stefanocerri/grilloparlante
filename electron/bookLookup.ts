@@ -373,6 +373,11 @@ export class LookupQueue {
   private pending: string[] = [];
   private running = false;
 
+  /** Libri in attesa di ricerca, compreso quello in corso. */
+  get size() {
+    return this.pending.length + (this.running ? 1 : 0);
+  }
+
   constructor(private onChange: (bookId: string) => void) {}
 
   add(bookId: string) {
@@ -383,7 +388,10 @@ export class LookupQueue {
   private async next() {
     if (this.running) return;
     const bookId = this.pending.shift();
-    if (!bookId) return;
+    if (!bookId) {
+      this.onChange("");
+      return;
+    }
     this.running = true;
     try {
       await autoLookup(bookId, () => this.onChange(bookId));
@@ -396,10 +404,27 @@ export class LookupQueue {
 }
 
 /** Libri mai cercati online (importati prima di questa funzione o con la ricerca spenta). */
+const RETRY_ERROR_MS = 30 * 60 * 1000;
+
+/**
+ * Ricerca automatica da fare: mai fatta, rimasta a metà (app chiusa) o fallita da più di mezz'ora
+ * (es. Mac offline all'importazione). Vale anche per i libri già convertiti: l'audio non cambia.
+ */
 export function needsLookup(book: Book) {
+  if (!canLookup(book)) return false;
   const lookup = readDetails(bookDir(book.id)).lookup;
-  // "searching" rimasto da una sessione chiusa a metà ricerca.
-  return canLookup(book) && (!lookup || lookup.state === "searching");
+  if (!lookup || lookup.state === "searching") return true;
+  return lookup.state === "error" && Date.now() - Date.parse(lookup.at ?? "") > RETRY_ERROR_MS;
+}
+
+/**
+ * "Collega tutta la libreria": libri che non hanno ancora un libro trovato online, né titolo o autore corretti a mano
+ * (chi li ha scritti a mano li ha già sistemati). Anche quelli già cercati senza risultato: magari ora c'è.
+ */
+export function unlinked(book: Book) {
+  if (!canLookup(book)) return false;
+  const details = readDetails(bookDir(book.id));
+  return !details.online && !details.manual?.title && details.lookup?.state !== "searching";
 }
 
 /** Correzioni a mano: si salva solo ciò che è diverso da quello trovato in automatico. */

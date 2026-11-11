@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { resetIntro } from "../lib/useIntro";
 import type { AppSnapshot, ThemeChoice } from "@shared/contracts";
-import { FolderOpen, Monitor, Moon, Power, Sun, Wand2 } from "lucide-react";
+import { FolderOpen, Globe, Loader2, Monitor, Moon, Power, Sun, Wand2 } from "lucide-react";
 import { ChannelList } from "./Channels";
 import { CustomVoices } from "./VoiceCreate";
 
@@ -48,8 +48,9 @@ export function Settings({ snapshot, onNewVoice }: { snapshot: AppSnapshot; onNe
           Cerca da solo le informazioni quando importi un libro
         </label>
         <p className="mt-1.5 text-2xs leading-relaxed text-faint">
-          Spenta, puoi sempre cercarle dalla scheda del libro (lente) o scriverle a mano (matita).
+          Spenta, puoi sempre cercarle dalla scheda del libro (lente) o scriverle a mano (matita), anche dopo la conversione.
         </p>
+        <LinkLibrary snapshot={snapshot} />
       </Section>
 
       <Section title="Aspetto">
@@ -107,6 +108,24 @@ function ThemePicker({ value }: { value: ThemeChoice }) {
           <Icon size={13} /> {label}
         </button>
       ))}
+    </div>
+  );
+}
+
+/** Collega i dati online ai libri già in libreria (anche convertiti): l'audio resta com'è. */
+function LinkLibrary({ snapshot }: { snapshot: AppSnapshot }) {
+  const busy = snapshot.lookupPending > 0;
+  if (!busy && !snapshot.unlinkedBooks) return null;
+  return (
+    <div className="mt-3 flex items-center gap-2 border-t border-line pt-3">
+      <p className="flex-1 text-xs text-mute">
+        {busy
+          ? `Cerco le informazioni: ${snapshot.lookupPending} ${snapshot.lookupPending === 1 ? "libro" : "libri"} in coda…`
+          : `${snapshot.unlinkedBooks} ${snapshot.unlinkedBooks === 1 ? "libro" : "libri"} senza dati online.`}
+      </p>
+      <button className="btn-secondary btn-sm" disabled={busy} onClick={() => void window.grillo.lookupAll()}>
+        {busy ? <Loader2 size={12} className="animate-spin" /> : <Globe size={12} />} Collega ora
+      </button>
     </div>
   );
 }

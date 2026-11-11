@@ -17,7 +17,7 @@ import { SetupError, setupLink, setupTurso } from "./tursoSetup";
 import { createTray, updateTray } from "./tray";
 import { libraryWindow, openLibraryWindow } from "./libraryWindow";
 import { ensureCover, previewDataUrl } from "./thumbnail";
-import { LookupQueue, applyMatch, clearOnline, needsLookup, queryFor, resetManual, saveManual, searchOnline, setManualCover, type LookupQuery } from "./bookLookup";
+import { LookupQueue, applyMatch, clearOnline, needsLookup, unlinked, queryFor, resetManual, saveManual, searchOnline, setManualCover, type LookupQuery } from "./bookLookup";
 import { readDetails } from "./bookDetails";
 
 protocol.registerSchemesAsPrivileged([
@@ -51,7 +51,7 @@ let theme = loadTheme();
 
 /** Ricerca online delle informazioni sui libri (editore, copertina, descrizione...): accesa se non la spegni. */
 let lookupOnline = readJson<{ lookupOnline?: boolean }>(settingsFile(), {}).lookupOnline ?? true;
-const lookups = new LookupQueue((bookId) => bookInfoChanged(bookId));
+const lookups = new LookupQueue((bookId) => (bookId ? bookInfoChanged(bookId) : broadcast()));
 
 /** Dopo un'importazione (e all'avvio per i libri mai cercati): cerca le informazioni online. */
 function lookupLater(bookId: string) {
@@ -201,7 +201,9 @@ function snapshot(): AppSnapshot {
     inbox: [...links.values()].flatMap((link) => link.inbox),
     defaultVoiceId: defaultVoice(),
     libraryDir: libraryDir(),
-    lookupOnline
+    lookupOnline,
+    lookupPending: lookups.size,
+    unlinkedBooks: listBooks().filter(unlinked).length
   };
 }
 
@@ -295,6 +297,8 @@ if (!app.requestSingleInstanceLock()) {
     for (const book of listBooks()) lookupLater(book.id);
     setInterval(() => {
       for (const sync of syncs.values()) sync.syncAll();
+      // Ricerche fallite (Mac offline): si ritentano da sole.
+      for (const book of listBooks()) lookupLater(book.id);
     }, SYNC_EVERY_MS);
     // themeSource cambia anche prefers-color-scheme nell'interfaccia: il CSS non deve sapere altro.
     nativeTheme.themeSource = theme;
@@ -438,6 +442,14 @@ ipcMain.handle("lookup:set", (_event, enabled: boolean) => {
   saveSettings({ lookupOnline });
   if (lookupOnline) for (const book of listBooks()) lookupLater(book.id);
   broadcast();
+});
+
+/** Collega i dati online a tutti i libri che non li hanno ancora, anche quelli già convertiti. */
+ipcMain.handle("lookup:all", () => {
+  const books = listBooks().filter(unlinked);
+  for (const book of books) lookups.add(book.id);
+  broadcast();
+  return books.length;
 });
 
 /** Cerca online: senza domanda usa ISBN, titolo e autore del libro. */
