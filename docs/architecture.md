@@ -39,6 +39,7 @@ PDF/EPUB/TXT/JSON ──► [app Mac: barra dei menu] ──► backend Python (
 ```sql
 books(id TEXT PRIMARY KEY, json TEXT, cover BLOB, cover_mime TEXT, updated_at TEXT)
 chapter_audio(book_id TEXT, idx INTEGER, part INTEGER, data BLOB)  -- pezzi da 512 KB
+chapter_text(book_id TEXT, idx INTEGER, text TEXT)  -- testo letto dalla voce, paragrafi separati da una riga vuota
 ```
 
 Canali (`electron/channels.ts`): ogni app di ascolto collegata ha il suo database Turso (`grillo-<id>`),
