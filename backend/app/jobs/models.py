@@ -25,6 +25,8 @@ class ExtractedDocument:
   section_meta: list[dict[str, str]] = field(default_factory=list)
   # Leggere ad alta voce il titolo di ogni capitolo (no per articoli e notizie)
   read_titles: bool = True
+  # Informazioni dal file: publisher, publishedDate, language, isbn, description, subjects
+  info: dict = field(default_factory=dict)
 
 
 @dataclass

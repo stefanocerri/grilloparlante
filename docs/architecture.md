@@ -12,6 +12,10 @@ PDF/EPUB/TXT/JSON ──► [app Mac: barra dei menu] ──► backend Python (
   - `runtime.ts`: trova o installa il Python con OmniVoice (`backend/runtime/install_managed_runtime.py`).
   - `queue.ts`: un processo `python -m app.cli` alla volta; legge eventi JSON da stdout.
   - `library.ts`: legge i `book.json` della libreria; protocollo `grillo://` per audio e copertine (con Range).
+    `readBook` unisce `book.json` con `info.json` (`bookDetails.ts`): titolo, autore, informazioni e copertina
+    trovati online o corretti a mano; `readRawBook` dà il `book.json` così com'è.
+  - `bookLookup.ts`: cerca le informazioni su Google Books e Open Library (prima per ISBN, poi titolo e autore),
+    applica da solo solo i risultati sicuri; correzioni a mano e copertina scelta dall'utente.
   - `tray.ts`: icona nella barra dei menu (percentuale durante la conversione, file trascinati, menu "Esci").
   - `popover.ts`: pannello 380×600 sotto l'icona, si chiude quando perde il focus (non durante i dialoghi).
   - `sync.ts`: carica su Turso i capitoli pronti, poi la scheda del libro; toglie da Turso le notizie scadute.
@@ -57,6 +61,7 @@ capitolo risulta `ready` solo quando tutti i suoi pezzi audio sono già su Turso
 ## Contratto con le app di ascolto
 
 Le PWA ([ilmatta](https://github.com/stefanocerri/ilmatta) o altre con lo stesso schema) leggono da Turso la colonna `books.json`, cioè il `book.json`. Campi utili:
-`kind`, `title`, `author`, `cover`, `publishedAt`, `expiresAt` e, per ogni capitolo, `title`, `status`,
+`kind`, `title`, `author`, `cover`, `publishedAt`, `expiresAt`, `info` (editore, data, lingua, ISBN, descrizione,
+argomenti, pagine: tutti facoltativi; titolo, autore e `info` sono già quelli finali, con le correzioni) e, per ogni capitolo, `title`, `status`,
 `duration`, `size`, `parts` e `meta` (sezione, fonte, link, data). I tipi sono in `shared/contracts.ts`.
 Per tipo: `SELECT json FROM books WHERE json_extract(json, '$.kind') = 'notiziario'`.

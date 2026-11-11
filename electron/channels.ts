@@ -159,6 +159,8 @@ interface BookSyncRecord {
   /** indice -> dimensione MP3 a cui si riferisce il testo caricato in chapter_text (assente nei registri vecchi). */
   texts?: Record<string, number>;
   coverUploaded: boolean;
+  /** Ultima copertina caricata (nome del file e data): se cambia (online, a mano) si ricarica. */
+  coverKey?: string;
   metaUpdatedAt: string;
 }
 
@@ -375,8 +377,10 @@ export class ChannelSync {
 
   /** Scheda per l'app: solo i capitoli già caricati risultano "ready". */
   private async uploadMeta(client: TursoClient, book: Book, record: BookSyncRecord, dir: string) {
+    // Per l'app contano i dati finali (titolo, autore, info): non da dove vengono.
+    const { infoSources: _sources, lookup: _lookup, coverFromPage: _fromPage, ...shared } = book;
     const remote = {
-      ...book,
+      ...shared,
       chapters: book.chapters.map((chapter) => {
         const uploaded = record.chapters[chapter.index];
         return {
@@ -401,15 +405,19 @@ export class ChannelSync {
         args: [book.id, JSON.stringify(remote), new Date().toISOString()]
       }
     ];
-    if (!record.coverUploaded && book.cover && fs.existsSync(path.join(dir, book.cover))) {
-      const mime = book.cover.endsWith(".png") ? "image/png" : "image/jpeg";
+    const coverPath = book.cover ? path.join(dir, book.cover) : "";
+    const coverKey = coverPath && fs.existsSync(coverPath) ? `${book.cover}:${fs.statSync(coverPath).mtimeMs}` : "";
+    // Libri caricati prima di coverKey: coverKey manca e la copertina si ricarica una volta.
+    if (coverKey && record.coverKey !== coverKey && book.cover) {
+      const mime = book.cover.endsWith(".png") ? "image/png" : book.cover.endsWith(".webp") ? "image/webp" : "image/jpeg";
       statements.push({
         sql: "UPDATE books SET cover = ?, cover_mime = ? WHERE id = ?",
         args: [new Uint8Array(fs.readFileSync(path.join(dir, book.cover))), mime, book.id] as never
       });
     }
     await client.batch(statements);
-    record.coverUploaded = record.coverUploaded || Boolean(book.cover);
+    record.coverUploaded = record.coverUploaded || Boolean(coverKey);
+    record.coverKey = coverKey || record.coverKey;
     record.metaUpdatedAt = book.updatedAt;
     writeJson(this.ledgerFile, this.ledger);
   }

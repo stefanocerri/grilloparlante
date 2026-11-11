@@ -44,6 +44,56 @@ export interface ChapterEntry {
 
 export type ContentKind = "libro" | "documentazione" | "articolo" | "notiziario";
 
+/** Informazioni sul libro oltre a titolo e autore. Tutte facoltative. */
+export interface BookInfo {
+  publisher?: string;
+  /** "2010", "2010-05" o "2010-05-12". */
+  publishedDate?: string;
+  /** Codice lingua, es. "it", "en" o "ita". */
+  language?: string;
+  isbn?: string;
+  description?: string;
+  subjects?: string[];
+  pages?: number;
+}
+
+/** Da dove viene un'informazione: dal file, da internet o scritta a mano. */
+export type InfoSource = "file" | "online" | "manual";
+
+/** Campi che si possono correggere a mano (stringa vuota = "togli questo campo"). */
+export interface BookInfoEdit {
+  title?: string;
+  author?: string;
+  publisher?: string;
+  publishedDate?: string;
+  language?: string;
+  isbn?: string;
+  description?: string;
+  subjects?: string[];
+}
+
+/** Un libro trovato online (Google Books o Open Library). */
+export interface OnlineMatch extends BookInfo {
+  provider: "google" | "openlibrary";
+  /** Id del libro presso il servizio. */
+  id: string;
+  title: string;
+  subtitle?: string;
+  author?: string;
+  /** Copertina remota (https). */
+  coverUrl?: string;
+  /** Link alla pagina del libro sul servizio. */
+  link?: string;
+  /** Quanto somiglia al libro importato, da 0 a 1 (1 = stesso ISBN). */
+  score?: number;
+}
+
+export interface InfoLookup {
+  state: "searching" | "found" | "not-found" | "error" | "skipped";
+  message?: string;
+  at?: string;
+}
+
 /** Contenuto di books/<id>/book.json scritto dal backend Python. */
 export interface Book {
   id: string;
@@ -57,6 +107,17 @@ export interface Book {
   expiresAt?: string;
   source?: string;
   url?: string;
+  /** Informazioni sul libro: in book.json quelle lette dal file; nella vista unite a quelle online e a mano. */
+  info?: BookInfo;
+  /** Da dove viene ogni campo (title, author, cover e quelli di info). Solo nella vista. */
+  infoSources?: Record<string, InfoSource>;
+  /** Ricerca online delle informazioni. Solo nella vista. */
+  lookup?: InfoLookup;
+  /** Titolo e autore come li ha letti il backend dal file. Solo nella vista. */
+  fileTitle?: string;
+  fileAuthor?: string;
+  /** true se la copertina è la prima pagina del file (QuickLook), non una copertina vera. */
+  coverFromPage?: boolean;
   voice: { id: string; name: string };
   speed: number;
   sourceFile: string;
@@ -208,6 +269,8 @@ export interface AppSnapshot {
   inbox: InboxItem[];
   defaultVoiceId: string | null;
   libraryDir: string;
+  /** Cerca da solo editore, copertina, descrizione... su Google Books e Open Library. */
+  lookupOnline: boolean;
 }
 
 export interface ImportRequest {

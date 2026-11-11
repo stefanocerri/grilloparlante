@@ -3,6 +3,7 @@ import type { AppSnapshot, BookView, ChapterEntry } from "@shared/contracts";
 import {
   BookOpen,
   FolderOpen,
+  Info,
   Minus,
   Pause,
   Play,
@@ -18,6 +19,7 @@ import { kindOf } from "../lib/kinds";
 import { useSnapshot } from "../lib/useSnapshot";
 import { TargetPicker } from "./Channels";
 import { Mark, Spinner } from "./ui";
+import { BookInfoPanel, infoLine } from "./BookInfo";
 
 type Filter = "all" | "mac" | string;
 const SPEEDS = [0.8, 1, 1.2, 1.5, 1.75, 2];
@@ -205,6 +207,8 @@ function Reader({ book, snapshot }: { book: BookView; snapshot: AppSnapshot }) {
   const kind = kindOf(book);
   const Icon = kind.icon;
   const textRef = useRef<HTMLDivElement>(null);
+  const [showInfo, setShowInfo] = useState(false);
+  const hasInfo = (book.kind ?? "libro") === "libro" || book.kind === "documentazione";
 
   useEffect(() => {
     localStorage.setItem("readerFont", String(fontSize));
@@ -227,6 +231,7 @@ function Reader({ book, snapshot }: { book: BookView; snapshot: AppSnapshot }) {
           <span className="badge-gray self-start">{kind.label}</span>
           <h1 className="truncate text-xl font-semibold tracking-tight">{book.title}</h1>
           {book.author && <p className="truncate text-sm text-mute">{book.author}</p>}
+          {infoLine(book) && <p className="truncate text-xs text-faint">{infoLine(book)}</p>}
           <p className="mt-auto font-mono text-2xs text-mute">
             {book.voice.name} · {book.readyChapters}/{book.chapters.length} capitoli pronti
             {book.totalDuration ? ` · ${formatDuration(book.totalDuration)}` : ""}
@@ -234,9 +239,20 @@ function Reader({ book, snapshot }: { book: BookView; snapshot: AppSnapshot }) {
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
           <TargetPicker snapshot={snapshot} value={book.targets} onChange={(targets) => void window.grillo.setTargets(book.id, targets)} />
-          <button className="btn-ghost btn-sm" onClick={() => void window.grillo.revealBook(book.id)}>
-            <FolderOpen size={13} /> Apri nel Finder
-          </button>
+          <div className="flex gap-1">
+            {hasInfo && (
+              <button
+                className={`btn-ghost btn-sm ${showInfo ? "bg-ink/5 text-ink" : ""}`}
+                onClick={() => setShowInfo(!showInfo)}
+                title="Editore, descrizione, ISBN… (anche da correggere a mano)"
+              >
+                <Info size={13} /> Informazioni
+              </button>
+            )}
+            <button className="btn-ghost btn-sm" onClick={() => void window.grillo.revealBook(book.id)}>
+              <FolderOpen size={13} /> Apri nel Finder
+            </button>
+          </div>
         </div>
       </header>
 
@@ -266,6 +282,11 @@ function Reader({ book, snapshot }: { book: BookView; snapshot: AppSnapshot }) {
           })}
         </ol>
 
+        {showInfo && hasInfo && (
+          <aside className="order-last w-80 shrink-0 overflow-y-auto border-l border-line bg-subtle p-3">
+            <BookInfoPanel book={book} wide />
+          </aside>
+        )}
         <div ref={textRef} className="relative min-w-0 flex-1 overflow-y-auto bg-bg">
           <div className="sticky top-0 z-10 flex justify-end gap-1 bg-gradient-to-b from-bg via-bg/90 to-transparent px-4 pb-4 pt-3">
             <button className="icon-btn border border-line bg-bg" title="Testo più piccolo" onClick={() => setFontSize((value) => Math.max(13, value - 1))}>

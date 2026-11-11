@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
 import QRCode from "qrcode";
-import type { AppQr, AppSnapshot, Channel, ImportRequest, ThemeChoice, TursoSetupOutcome, VoiceCreateRequest, VoiceInfo } from "../shared/contracts";
+import type { AppQr, AppSnapshot, BookInfoEdit, Channel, ImportRequest, OnlineMatch, ThemeChoice, TursoSetupOutcome, VoiceCreateRequest, VoiceInfo } from "../shared/contracts";
 import { CHANNEL_PROTOCOL_VERSION, type GrilloStatus, type RequestOptions } from "../shared/channel";
 import { ChannelLink, ChannelStore, ChannelSync, channelView } from "./channels";
 import { bookDir, deleteBook, listBooks, readBook, toView } from "./library";
@@ -17,6 +17,8 @@ import { SetupError, setupLink, setupTurso } from "./tursoSetup";
 import { createTray, updateTray } from "./tray";
 import { libraryWindow, openLibraryWindow } from "./libraryWindow";
 import { ensureCover, previewDataUrl } from "./thumbnail";
+import { LookupQueue, applyMatch, clearOnline, needsLookup, queryFor, resetManual, saveManual, searchOnline, setManualCover, type LookupQuery } from "./bookLookup";
+import { readDetails } from "./bookDetails";
 
 protocol.registerSchemesAsPrivileged([
   { scheme: "grillo", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }
@@ -46,6 +48,22 @@ function loadTheme(): ThemeChoice {
 }
 
 let theme = loadTheme();
+
+/** Ricerca online delle informazioni sui libri (editore, copertina, descrizione...): accesa se non la spegni. */
+let lookupOnline = readJson<{ lookupOnline?: boolean }>(settingsFile(), {}).lookupOnline ?? true;
+const lookups = new LookupQueue((bookId) => bookInfoChanged(bookId));
+
+/** Dopo un'importazione (e all'avvio per i libri mai cercati): cerca le informazioni online. */
+function lookupLater(bookId: string) {
+  const book = readBook(bookId);
+  if (lookupOnline && book && needsLookup(book)) lookups.add(bookId);
+}
+
+/** Informazioni del libro cambiate: aggiorna l'interfaccia e le app collegate. */
+function bookInfoChanged(bookId: string) {
+  broadcast();
+  for (const sync of syncs.values()) sync.syncBook(bookId);
+}
 let broadcastTimer: NodeJS.Timeout | null = null;
 
 const runtime = new RuntimeManager(broadcast);
@@ -148,6 +166,7 @@ async function importForChannel(filePath: string, options: RequestOptions, chann
   if (!voiceId) throw new Error("Nessuna voce disponibile su Grillo.");
   const bookId = await queue.importBook({ filePath, voiceId, speed: options.speed ?? 1 });
   await ensureCover(bookId, filePath);
+  lookupLater(bookId);
   store.setTargets(bookId, [channelId]);
   syncs.get(channelId)?.syncBook(bookId);
   broadcast();
@@ -181,7 +200,8 @@ function snapshot(): AppSnapshot {
     channels: store.channels.map((channel) => channelView(channel, syncs.get(channel.id))),
     inbox: [...links.values()].flatMap((link) => link.inbox),
     defaultVoiceId: defaultVoice(),
-    libraryDir: libraryDir()
+    libraryDir: libraryDir(),
+    lookupOnline
   };
 }
 
@@ -271,6 +291,8 @@ if (!app.requestSingleInstanceLock()) {
     void runtime.refresh();
     store = new ChannelStore(settingsFile());
     refreshChannels();
+    // Libri importati prima della ricerca online: le informazioni arrivano piano piano, uno alla volta.
+    for (const book of listBooks()) lookupLater(book.id);
     setInterval(() => {
       for (const sync of syncs.values()) sync.syncAll();
     }, SYNC_EVERY_MS);
@@ -373,6 +395,7 @@ ipcMain.handle("voice:delete", (_event, voiceId: string) => voiceCreator.delete(
 ipcMain.handle("book:import", async (_event, request: ImportRequest) => {
   const bookId = await queue.importBook(request);
   await ensureCover(bookId, request.filePath);
+  lookupLater(bookId);
   store.defaultVoiceId = request.voiceId;
   store.setTargets(bookId, request.targets ?? []);
   for (const sync of syncs.values()) sync.syncBook(bookId);
@@ -406,6 +429,60 @@ ipcMain.handle("book:delete", async (_event, bookId: string) => {
   broadcast();
   store.forgetBook(bookId);
   await Promise.all([...syncs.values()].map((sync) => sync.removeRemote(bookId).catch(() => undefined)));
+});
+
+// --- Informazioni sul libro (online e a mano) ------------------------------------
+
+ipcMain.handle("lookup:set", (_event, enabled: boolean) => {
+  lookupOnline = Boolean(enabled);
+  saveSettings({ lookupOnline });
+  if (lookupOnline) for (const book of listBooks()) lookupLater(book.id);
+  broadcast();
+});
+
+/** Cerca online: senza domanda usa ISBN, titolo e autore del libro. */
+ipcMain.handle("book:info-search", async (_event, bookId: string, query?: LookupQuery) => {
+  const book = readBook(bookId);
+  if (!book) throw new Error("Libro non trovato");
+  const auto = queryFor(book, readDetails(bookDir(bookId)).manual);
+  const matches = await searchOnline(query && (query.text || query.title || query.isbn) ? query : auto);
+  // Con l'ISBN e nessun risultato riprovo con titolo e autore.
+  if (!matches.length && !query && auto.isbn) return searchOnline({ ...auto, isbn: undefined });
+  return matches;
+});
+
+ipcMain.handle("book:info-apply", async (_event, bookId: string, match: OnlineMatch) => {
+  await applyMatch(bookId, match);
+  bookInfoChanged(bookId);
+});
+
+ipcMain.handle("book:info-clear-online", (_event, bookId: string) => {
+  clearOnline(bookId);
+  bookInfoChanged(bookId);
+});
+
+ipcMain.handle("book:info-save", (_event, bookId: string, edit: BookInfoEdit) => {
+  saveManual(bookId, edit);
+  bookInfoChanged(bookId);
+});
+
+ipcMain.handle("book:info-reset", (_event, bookId: string) => {
+  resetManual(bookId);
+  bookInfoChanged(bookId);
+});
+
+ipcMain.handle("book:info-cover", async (_event, bookId: string) => {
+  const result = await withPopoverPinned(() =>
+    dialog.showOpenDialog({
+      title: "Scegli la copertina",
+      properties: ["openFile"],
+      filters: [{ name: "Immagini", extensions: ["jpg", "jpeg", "png", "webp"] }]
+    })
+  );
+  if (result.canceled || !result.filePaths[0]) return false;
+  setManualCover(bookId, result.filePaths[0]);
+  bookInfoChanged(bookId);
+  return true;
 });
 
 /** Destinazioni di un libro: i canali aggiunti ricevono il libro, quelli tolti lo perdono (sul Mac resta). */

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
 
+from app.book_info import clean_info, is_junk_title, is_valid_isbn, normalize_isbn, plain_text, title_from_filename
 from app.chaptering.toc_detector import sections_from_marks
 from app.jobs.models import ExtractedDocument
 from app.utils.files import compact_whitespace
@@ -210,15 +211,11 @@ def extract_epub(file_path: str) -> ExtractedDocument:
   toc = [title for title, _ in toc_pairs]
   cover_bytes, cover_extension = _extract_cover(book)
 
-  title = ""
-  if book.get_metadata("DC", "title"):
-    title = str(book.get_metadata("DC", "title")[0][0]).strip()
-  author = ""
-  if book.get_metadata("DC", "creator"):
-    author = str(book.get_metadata("DC", "creator")[0][0]).strip()
+  title = _dc_first(book, "title")
+  author = ", ".join(_dc_all(book, "creator"))
 
   return ExtractedDocument(
-    title=title or Path(file_path).stem.replace("_", " "),
+    title=title if not is_junk_title(title) else title_from_filename(file_path),
     author=author,
     file_type="epub",
     text=text,
@@ -227,5 +224,38 @@ def extract_epub(file_path: str) -> ExtractedDocument:
     sections=sections_from_marks(text, toc_marks),
     metadata={"toc_entries": str(len(toc))},
     cover_bytes=cover_bytes,
-    cover_extension=cover_extension
+    cover_extension=cover_extension,
+    info=_epub_info(book),
   )
+
+
+def _dc_all(book: Any, name: str) -> list[str]:
+  try:
+    entries = book.get_metadata("DC", name) or []
+  except Exception:
+    return []
+  return [" ".join(str(entry[0]).split()) for entry in entries if entry and entry[0] and str(entry[0]).strip()]
+
+
+def _dc_first(book: Any, name: str) -> str:
+  values = _dc_all(book, name)
+  return values[0] if values else ""
+
+
+def _epub_info(book: Any) -> dict:
+  """Metadati Dublin Core dell'EPUB: editore, data, lingua, ISBN, descrizione, argomenti."""
+  isbn = ""
+  for value in _dc_all(book, "identifier"):
+    candidate = normalize_isbn(re.sub(r"^(?:urn:)?isbn:?", "", value, flags=re.IGNORECASE))
+    if is_valid_isbn(candidate):
+      isbn = candidate
+      break
+  date = _dc_first(book, "date")
+  return clean_info({
+    "publisher": _dc_first(book, "publisher"),
+    "publishedDate": date[:10] if re.match(r"^\d{4}", date) and not date.startswith("0101") else "",
+    "language": _dc_first(book, "language"),
+    "isbn": isbn,
+    "description": plain_text(_dc_first(book, "description")),
+    "subjects": _dc_all(book, "subject"),
+  })

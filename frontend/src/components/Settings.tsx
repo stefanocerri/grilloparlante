@@ -34,6 +34,24 @@ export function Settings({ snapshot, onNewVoice }: { snapshot: AppSnapshot; onNe
         <CustomVoices snapshot={snapshot} onNew={onNewVoice} />
       </Section>
 
+      <Section
+        title="Informazioni sui libri"
+        description="Editore, anno, copertina e descrizione da Google Books e Open Library. Si mandano solo titolo, autore e ISBN."
+      >
+        <label className="flex cursor-pointer items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            className="accent-ink"
+            checked={snapshot.lookupOnline}
+            onChange={(event) => void window.grillo.setLookupOnline(event.target.checked)}
+          />
+          Cerca da solo le informazioni quando importi un libro
+        </label>
+        <p className="mt-1.5 text-2xs leading-relaxed text-faint">
+          Spenta, puoi sempre cercarle dalla scheda del libro (lente) o scriverle a mano (matita).
+        </p>
+      </Section>
+
       <Section title="Aspetto">
         <ThemePicker value={snapshot.theme} />
       </Section>

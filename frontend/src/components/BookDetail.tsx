@@ -5,6 +5,7 @@ import { formatDuration, formatMinutes } from "../lib/format";
 import { kindOf } from "../lib/kinds";
 import { JobCard } from "./JobCard";
 import { TargetPicker } from "./Channels";
+import { BookInfoPanel, infoLine } from "./BookInfo";
 
 export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snapshot: AppSnapshot; onDeleted: () => void }) {
   const [playing, setPlaying] = useState<number | null>(null);
@@ -82,6 +83,7 @@ export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snap
           </div>
           <h2 className="mt-1.5 line-clamp-2 text-base font-semibold leading-snug tracking-tight">{book.title}</h2>
           {book.author && <p className="truncate text-xs text-mute">{book.author}</p>}
+          {infoLine(book) && <p className="truncate text-2xs text-faint">{infoLine(book)}</p>}
           <p className="mt-auto flex flex-wrap items-center gap-x-1 font-mono text-2xs text-mute">
             <span>{book.voice.name}</span>
             <span className="text-faint">·</span>
@@ -103,6 +105,8 @@ export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snap
       <button className="btn-secondary w-full" onClick={() => void window.grillo.openLibrary(book.id)}>
         <BookOpenText size={14} /> Leggi e ascolta nella Libreria
       </button>
+
+      {(book.kind ?? "libro") === "libro" || book.kind === "documentazione" ? <BookInfoPanel book={book} /> : null}
 
       <section className="space-y-2 rounded-lg border border-line bg-subtle p-2.5">
         <div className="flex items-center gap-2">

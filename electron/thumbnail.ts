@@ -1,7 +1,7 @@
 import { nativeImage } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { bookDir, readBook } from "./library";
+import { bookDir, readRawBook } from "./library";
 import { writeJson } from "./paths";
 
 /** Prima pagina di un PDF, EPUB o testo, con le miniature di QuickLook (macOS). Null se non disponibile. */
@@ -26,13 +26,19 @@ export async function previewDataUrl(filePath: string) {
  * Cambia updatedAt così la copertina arriva anche alle app collegate.
  */
 export async function ensureCover(bookId: string, sourcePath: string) {
-  const book = readBook(bookId);
+  const book = readRawBook(bookId);
   if (!book || book.cover || path.extname(sourcePath).toLowerCase() === ".json") return false;
   const image = await firstPage(sourcePath);
   if (!image) return false;
   fs.writeFileSync(path.join(bookDir(bookId), "cover.jpg"), image.toJPEG(85));
-  const fresh = readBook(bookId);
+  const fresh = readRawBook(bookId);
   if (!fresh) return false;
-  writeJson(path.join(bookDir(bookId), "book.json"), { ...fresh, cover: "cover.jpg", updatedAt: new Date().toISOString() });
+  // coverFromPage: una copertina vera trovata online (o scelta a mano) ha la precedenza.
+  writeJson(path.join(bookDir(bookId), "book.json"), {
+    ...fresh,
+    cover: "cover.jpg",
+    coverFromPage: true,
+    updatedAt: new Date().toISOString()
+  });
   return true;
 }

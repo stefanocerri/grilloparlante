@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from app.book_info import clean_info, is_junk_title, title_from_filename
 from app.chaptering.toc_detector import sections_from_marks
 from app.jobs.models import ExtractedDocument
 from app.utils.files import compact_whitespace
@@ -154,6 +155,17 @@ def extract_pdf(file_path: str) -> ExtractedDocument:
   meta = reader.metadata
   title = (getattr(meta, "title", "") or "").strip() if meta else ""
   author = (getattr(meta, "author", "") or "").strip() if meta else ""
+  if is_junk_title(title):
+    title = ""
+  if is_junk_title(author):
+    author = ""
+  info: dict = {}
+  if meta:
+    keywords = str(meta.get("/Keywords", "") or "")
+    info = clean_info({
+      "description": str(getattr(meta, "subject", "") or ""),
+      "subjects": [part for part in re.split(r"[;,]", keywords)],
+    })
   warnings: list[str] = []
   cover_bytes, cover_extension = _extract_cover_from_pdf(reader)
 
@@ -164,9 +176,10 @@ def extract_pdf(file_path: str) -> ExtractedDocument:
     )
 
   return ExtractedDocument(
-    title=title or Path(file_path).stem.replace("_", " "),
+    title=title or title_from_filename(file_path),
     author=author,
     file_type="pdf",
+    info=info,
     text=text,
     toc=[title for _, title in toc_marks],
     toc_marks=toc_marks,

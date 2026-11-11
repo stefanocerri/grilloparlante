@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
-import type { AppQr, AppSnapshot, ThemeChoice, VoiceCreateRequest, ImportRequest, SystemCheck, TursoSetupOutcome } from "../shared/contracts";
+import type { AppQr, AppSnapshot, BookInfoEdit, OnlineMatch, ThemeChoice, VoiceCreateRequest, ImportRequest, SystemCheck, TursoSetupOutcome } from "../shared/contracts";
 
 function subscribe<T>(channel: string, listener: (payload: T) => void) {
   const wrapped = (_event: unknown, payload: T) => listener(payload);
@@ -42,6 +42,15 @@ const api = {
   onLibraryShow: (listener: (bookId: string) => void) => subscribe("library:show", listener),
   revealLibrary: () => ipcRenderer.invoke("library:reveal") as Promise<void>,
   deleteBook: (bookId: string) => ipcRenderer.invoke("book:delete", bookId) as Promise<void>,
+  /** Informazioni sul libro: ricerca online (anche con domanda libera), scelta, correzioni a mano. */
+  setLookupOnline: (enabled: boolean) => ipcRenderer.invoke("lookup:set", enabled) as Promise<void>,
+  searchBookInfo: (bookId: string, query?: { title?: string; author?: string; isbn?: string; text?: string }) =>
+    ipcRenderer.invoke("book:info-search", bookId, query) as Promise<OnlineMatch[]>,
+  applyBookInfo: (bookId: string, match: OnlineMatch) => ipcRenderer.invoke("book:info-apply", bookId, match) as Promise<void>,
+  clearOnlineInfo: (bookId: string) => ipcRenderer.invoke("book:info-clear-online", bookId) as Promise<void>,
+  saveBookInfo: (bookId: string, edit: BookInfoEdit) => ipcRenderer.invoke("book:info-save", bookId, edit) as Promise<void>,
+  resetBookInfo: (bookId: string) => ipcRenderer.invoke("book:info-reset", bookId) as Promise<void>,
+  pickBookCover: (bookId: string) => ipcRenderer.invoke("book:info-cover", bookId) as Promise<boolean>,
   setTargets: (bookId: string, targets: string[]) => ipcRenderer.invoke("book:targets", bookId, targets) as Promise<void>,
   addChannel: (name: string, appUrl: string) => ipcRenderer.invoke("channel:add", name, appUrl) as Promise<string>,
   updateChannel: (id: string, patch: { name?: string; appUrl?: string; rescanDone?: boolean }) =>

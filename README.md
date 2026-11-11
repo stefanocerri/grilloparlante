@@ -72,6 +72,27 @@ Dal pannello, l'icona **Libreria** (o "Leggi e ascolta" nella scheda di un libro
 La copia sul Mac sta in `~/Documents/Grillo Parlante/books/<id>/` (testo in `text/`, audio in `chapters/`):
 "Apri nel Finder" la mostra.
 
+## Informazioni sul libro
+
+Grillo raccoglie da solo editore, anno, lingua, ISBN, numero di pagine, argomenti, descrizione e copertina:
+
+1. **Dal file**: metadati dell'EPUB (editore, data, lingua, ISBN, descrizione, argomenti) e del PDF; l'ISBN lo cerca
+   anche nel testo (pagina del copyright, colophon). I titoli finti che certi programmi scrivono nel PDF
+   ("Microsoft Word - documento1.docx", "untitled"…) vengono scartati a favore del nome del file.
+2. **Online**, dopo l'importazione: [Google Books](https://developers.google.com/books) e
+   [Open Library](https://openlibrary.org/developers/api), gratis e senza account. Prima per ISBN, poi per titolo
+   e autore. Il risultato si applica da solo solo se è sicuramente lo stesso libro (stesso ISBN, o titolo e autore
+   molto simili); così anche titolo e autore non dipendono più dai metadati del PDF. Si mandano solo titolo, autore
+   e ISBN. I libri importati prima vengono cercati all'avvio, uno alla volta.
+3. **A mano**: nella scheda del libro (o in Libreria → **Informazioni**) la lente cerca online e fa scegliere tra i
+   risultati, la matita apre il modulo per correggere titolo, autore, editore, anno, lingua, ISBN, argomenti,
+   descrizione e copertina. Le correzioni a mano vincono sempre; "Ripristina automatiche" le toglie.
+
+Ordine: a mano → online per titolo e autore → file per gli altri campi → online. Le informazioni online e a mano
+stanno in `info.json` nella cartella del libro (il backend non lo tocca, quindi si può correggere anche mentre
+converte); la cartella e l'id del libro non cambiano. Le app collegate ricevono titolo, autore, `info` e copertina
+aggiornati. La ricerca automatica si spegne in Impostazioni → **Informazioni sui libri**.
+
 ## Voci da un campione
 
 Oltre alle voci incluse puoi crearne di nuove: Impostazioni → **Voci** → "Nuova voce da un campione", oppure
@@ -90,8 +111,10 @@ Usa solo voci che hai il diritto di usare.
 La libreria si trova in `~/Documents/Grillo Parlante/books/`, con una cartella per libro o articolo:
 
 ```text
-book.json          titolo, tipo (kind), voce, capitoli con stato e durata
-cover.jpg          copertina, se la sorgente ne ha una
+book.json          titolo, tipo (kind), voce, capitoli con stato e durata, info lette dal file
+info.json          informazioni trovate online e correzioni a mano
+cover.jpg          copertina, se la sorgente ne ha una (o la prima pagina)
+cover.online.jpg   copertina trovata online; cover.manual.* quella scelta a mano
 text/001.txt       testo pulito di ogni capitolo
 chapters/001.mp3   audio dei capitoli convertiti (48 kbps, circa 21 MB per ora)
 ```
