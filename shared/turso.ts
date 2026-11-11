@@ -126,7 +126,9 @@ export class TursoClient {
 /**
  * Schema condiviso: l'app Mac scrive, le PWA leggono.
  * `books.json` e il book.json completo (con kind, meta dei capitoli, date); i capitoli risultano
- * "ready" solo quando tutto il loro audio e in `chapter_audio`. Filtrare per tipo:
+ * "ready" solo quando tutto il loro audio e in `chapter_audio`. Il testo letto dalla voce sta in `chapter_text`
+ * (testo semplice, paragrafi separati da una riga vuota; idx = index del capitolo), fuori da `books.json` per
+ * tenerlo leggero: le app lo leggono capitolo per capitolo. Filtrare per tipo:
  *   SELECT json FROM books WHERE json_extract(json, '$.kind') = 'notiziario'
  */
 export const TURSO_SCHEMA: SqlStatement[] = [
@@ -146,6 +148,14 @@ export const TURSO_SCHEMA: SqlStatement[] = [
       part INTEGER NOT NULL,
       data BLOB NOT NULL,
       PRIMARY KEY (book_id, idx, part)
+    )`
+  },
+  {
+    sql: `CREATE TABLE IF NOT EXISTS chapter_text (
+      book_id TEXT NOT NULL,
+      idx INTEGER NOT NULL,
+      text TEXT NOT NULL,
+      PRIMARY KEY (book_id, idx)
     )`
   }
 ];

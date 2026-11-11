@@ -256,6 +256,7 @@ export class ChannelSync {
     if (!this.db()) return;
     await this.client().batch([
       { sql: "DELETE FROM chapter_audio WHERE book_id = ?", args: [bookId] },
+      { sql: "DELETE FROM chapter_text WHERE book_id = ?", args: [bookId] },
       { sql: "DELETE FROM books WHERE id = ?", args: [bookId] }
     ]);
   }
