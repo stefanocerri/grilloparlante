@@ -156,6 +156,8 @@ export class ChannelStore {
 
 interface BookSyncRecord {
   chapters: Record<string, number>; // indice -> dimensione MP3 caricata
+  /** Capitoli il cui testo è in `chapter_text` (manca nei registri di prima: il testo si aggiunge allora). */
+  texts?: Record<string, true>;
   coverUploaded: boolean;
   metaUpdatedAt: string;
 }
@@ -256,6 +258,7 @@ export class ChannelSync {
     if (!this.db()) return;
     await this.client().batch([
       { sql: "DELETE FROM chapter_audio WHERE book_id = ?", args: [bookId] },
+      { sql: "DELETE FROM chapter_text WHERE book_id = ?", args: [bookId] },
       { sql: "DELETE FROM books WHERE id = ?", args: [bookId] }
     ]);
   }
@@ -308,7 +311,11 @@ export class ChannelSync {
       const file = path.join(dir, chapter.file);
       if (!fs.existsSync(file)) continue;
       const size = fs.statSync(file).size;
-      if (record.chapters[chapter.index] === size) continue;
+      if (record.chapters[chapter.index] === size) {
+        // Audio già su (magari da prima che esistesse chapter_text): basta aggiungere il testo.
+        if (!record.texts?.[chapter.index]) await this.uploadText(client, book.id, chapter.index, record);
+        continue;
+      }
 
       this.setStatus({ state: "uploading", message: `Carico "${book.title}", capitolo ${chapter.index}…` });
       const data = fs.readFileSync(file);
@@ -321,12 +328,29 @@ export class ChannelSync {
           new Uint8Array(data.subarray(offset, offset + AUDIO_PART_BYTES))
         ]);
       }
+      // Il testo prima della scheda: quando il capitolo risulta "ready" all'app, c'è già anche il testo.
+      await this.uploadText(client, book.id, chapter.index, record);
       record.chapters[chapter.index] = size;
       writeJson(this.ledgerFile, this.ledger);
       await this.uploadMeta(client, book, record, dir);
     }
 
     if (record.metaUpdatedAt !== book.updatedAt) await this.uploadMeta(client, book, record, dir);
+  }
+
+  /** Testo letto dalla voce (text/NNN.txt: testo semplice, paragrafi separati da una riga vuota). */
+  private async uploadText(client: TursoClient, bookId: string, index: number, record: BookSyncRecord) {
+    const file = path.join(bookDir(bookId), "text", `${String(index).padStart(3, "0")}.txt`);
+    if (!fs.existsSync(file)) return;
+    const text = fs.readFileSync(file, "utf-8").replace(/\r\n?/g, "\n").trim();
+    if (!text) return;
+    await client.query(
+      `INSERT INTO chapter_text (book_id, idx, text) VALUES (?, ?, ?)
+       ON CONFLICT(book_id, idx) DO UPDATE SET text = excluded.text`,
+      [bookId, index, text]
+    );
+    record.texts = { ...record.texts, [index]: true };
+    writeJson(this.ledgerFile, this.ledger);
   }
 
   /** Scheda per l'app: solo i capitoli già caricati risultano "ready". */

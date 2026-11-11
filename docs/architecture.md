@@ -3,7 +3,7 @@
 ```
 PDF/EPUB/TXT/JSON ──► [app Mac: barra dei menu] ──► backend Python (OmniVoice) ──► ~/Documents/Grillo Parlante/books/<id>/
                               │                                                       book.json · cover · text/ · chapters/*.mp3
-                              └── capitolo pronto ──► Turso (books, chapter_audio) ──► database di ogni app destinataria ──► app di ascolto (ilmatta, fomo, skal)
+                              └── capitolo pronto ──► Turso (books, chapter_audio, chapter_text) ──► database di ogni app destinataria ──► app di ascolto (ilmatta, fomo, skal)
 ```
 
 ## Processi
@@ -39,6 +39,7 @@ PDF/EPUB/TXT/JSON ──► [app Mac: barra dei menu] ──► backend Python (
 ```sql
 books(id TEXT PRIMARY KEY, json TEXT, cover BLOB, cover_mime TEXT, updated_at TEXT)
 chapter_audio(book_id TEXT, idx INTEGER, part INTEGER, data BLOB)  -- pezzi da 512 KB
+chapter_text(book_id TEXT, idx INTEGER, text TEXT)                -- testo letto dalla voce (text/NNN.txt)
 ```
 
 Canali (`electron/channels.ts`): ogni app di ascolto collegata ha il suo database Turso (`grillo-<id>`),
