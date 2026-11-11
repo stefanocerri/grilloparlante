@@ -24,6 +24,7 @@ SAMPLE_RATE = 24000
 MIN_SECONDS = 4.0
 TARGET_SECONDS = 15.0
 MAX_WITH_TRANSCRIPT = 30.0
+PAUSE_SECONDS = 0.25
 PREVIEW_TEXT = "Ciao, sono la tua nuova voce. Da oggi posso leggerti libri, articoli e notizie, capitolo per capitolo."
 
 
@@ -32,15 +33,30 @@ class VoiceError(Exception):
 
 
 def _cut_at_pause(audio: np.ndarray, seconds: float) -> np.ndarray:
-  """Taglia vicino a `seconds`, nel punto più silenzioso degli ultimi 3 secondi, per non spezzare una parola."""
+  """Taglia vicino a `seconds` in una pausa vera (almeno un quarto di secondo di silenzio), mai dentro una parola.
+
+  Se il campione finisce con un pezzo di parola, Whisper lo scarta dalla trascrizione e OmniVoice lo ripete
+  all'inizio di ogni audio (era il «un» in più).
+  """
   end = int(seconds * SAMPLE_RATE)
   if len(audio) <= end:
     return audio
-  window = int(0.05 * SAMPLE_RATE)
-  start = max(window, end - 3 * SAMPLE_RATE)
-  energies = [float(np.mean(audio[i - window:i] ** 2)) for i in range(start, end, window)]
-  cut = start + int(np.argmin(energies)) * window
-  return audio[:cut]
+  hop = int(0.01 * SAMPLE_RATE)
+  span = int(PAUSE_SECONDS / 0.01)
+  energy = np.array([float(np.mean(audio[i:i + hop] ** 2)) for i in range(0, len(audio) - hop, hop)])
+  quiet = energy < max(float(np.percentile(energy, 90)) * 0.01, 1e-7)
+  # pause lunghe almeno `span` passi, cercate all'indietro da `seconds` fino a `MIN_SECONDS`
+  last = min(len(quiet), end // hop)
+  first = int(MIN_SECONDS * SAMPLE_RATE) // hop
+  run = 0
+  for index in range(last - 1, first - 1, -1):
+    run = run + 1 if quiet[index] else 0
+    if run >= span:
+      return audio[: (index + run // 2) * hop]
+  raise VoiceError(
+    "Nel campione non trovo una pausa per tagliarlo senza spezzare una parola. Usa un audio con qualche pausa tra "
+    "le frasi, oppure scrivi tu la trascrizione esatta."
+  )
 
 
 def _converters(source: str, target: str) -> list[list[str]]:
