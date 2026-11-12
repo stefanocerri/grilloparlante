@@ -1,9 +1,14 @@
 [
-  {"id": "uomo_01", "name": "Marco", "gender": "uomo", "description": "Voce maschile calda, ritmo da narratore"},
-  {"id": "donna_e", "name": "Anna", "gender": "donna", "description": "Voce femminile anziana, profonda"},
   {"id": "brando", "name": "Brando", "gender": "uomo", "description": "Voce maschile: tono da racconto per i libri, da notiziario per articoli e notizie"},
   {"id": "chiara", "name": "Chiara", "gender": "donna", "description": "Voce femminile: tono da racconto per i libri, da notiziario per articoli e notizie"},
   {"id": "cornelia", "name": "Cornelia", "gender": "donna", "description": "Voce femminile: tono da racconto per i libri, da notiziario per articoli e notizie"},
   {"id": "dimitri", "name": "Dimitri", "gender": "uomo", "description": "Voce maschile: tono da racconto per i libri, da notiziario per articoli e notizie"},
-  {"id": "edoardo", "name": "Edoardo", "gender": "uomo", "description": "Voce maschile: tono da racconto per i libri, da notiziario per articoli e notizie"}
+  {"id": "edoardo", "name": "Edoardo", "gender": "uomo", "description": "Voce maschile: tono da racconto per i libri, da notiziario per articoli e notizie"},
+  {"id": "gianluigi", "name": "Gianluigi", "gender": "uomo", "description": "Voce maschile: tono da racconto per i libri, da notiziario per articoli e notizie"},
+  {"id": "morgaine", "name": "Morgaine", "gender": "donna", "description": "Voce femminile: tono da racconto per i libri, da notiziario per articoli e notizie"},
+  {"id": "nick", "name": "Nick", "gender": "uomo", "description": "Voce maschile: tono da racconto per i libri, da notiziario per articoli e notizie"},
+  {"id": "serena", "name": "Serena", "gender": "donna", "description": "Voce femminile: tono da racconto per i libri, da notiziario per articoli e notizie"},
+  {"id": "stella", "name": "Stella", "gender": "donna", "description": "Voce femminile: tono da racconto per i libri, da notiziario per articoli e notizie"},
+  {"id": "valentina", "name": "Valentina", "gender": "donna", "description": "Voce femminile: tono da racconto per i libri, da notiziario per articoli e notizie"},
+  {"id": "vito", "name": "Vito", "gender": "uomo", "description": "Voce maschile: tono da racconto per i libri, da notiziario per articoli e notizie"}
 ]

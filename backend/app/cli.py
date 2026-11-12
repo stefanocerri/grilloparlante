@@ -1,6 +1,6 @@
 """Backend locale di Grillo parlante.
 
-  python -m app.cli import  --input libro.pdf --voice uomo_01 --library ~/Grillo
+  python -m app.cli import  --input libro.pdf --voice brando --library ~/Grillo
   python -m app.cli convert --book <id> --chapters 1,2,3 --library ~/Grillo
   python -m app.cli voices
   python -m app.cli prefetch      # scarica il modello OmniVoice

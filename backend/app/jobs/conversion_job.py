@@ -21,7 +21,7 @@ from app.text_cleanup import clean_for_speech
 from app.tts.omnivoice_engine import SAMPLE_RATE, OmniVoiceEngine
 from app.utils.events import EventEmitter
 from app.utils.files import slugify
-from app.voices import get_voice
+from app.voices import get_voice, list_voices
 
 CHUNK_CHARS = 600  # ~30-40 s di parlato per pezzo
 PAUSE_BETWEEN_CHUNKS = 0.35
@@ -62,7 +62,18 @@ class ConversionJob:
       return self._finish()
 
     # Le voci con due campioni leggono i libri con tono da racconto e articoli e notiziari con tono da notiziario.
-    voice = get_voice(book["voice"]["id"]).for_kind(book.get("kind"))
+    try:
+      voice = get_voice(book["voice"]["id"])
+    except ValueError:
+      # La voce del libro non c'è più (tolta dall'app o cancellata): si continua con la prima disponibile.
+      voices = list_voices()
+      if not voices:
+        raise
+      voice = voices[0]
+      self.emitter.log("info", f"La voce {book['voice'].get('name', book['voice']['id'])} non c'è più: uso {voice.name}")
+      book["voice"] = {"id": voice.id, "name": voice.name}
+      self.store.save(book)
+    voice = voice.for_kind(book.get("kind"))
     if voice.sample_path.name.endswith(".notizie.wav"):
       self.emitter.log("info", f"Voce {voice.name} con tono da notiziario")
     engine = OmniVoiceEngine(voice, book.get("speed", 1.0), log=lambda m: self.emitter.log("info", m))

@@ -7,7 +7,7 @@ file sull'icona per importarlo, tasto destro per uscire. Mentre converte, accant
 
 1. **Importa** un PDF, un EPUB, un testo (TXT/MD) o un articolo/notiziario in JSON: l'app estrae il testo e
    divide i capitoli (segnalibri del PDF, indice dell'EPUB, oppure un capitolo per articolo).
-2. **Scegli la voce** tra le voci italiane incluse (Marco, Anna, Brando, Chiara, Cornelia, Dimitri ed Edoardo; le ultime cinque leggono i libri con tono da racconto e articoli e notiziari con tono da notiziario) o tra quelle che crei tu.
+2. **Scegli la voce** tra le 12 voci italiane incluse (Brando, Chiara, Cornelia, Dimitri, Edoardo, Gianluigi, Morgaine, Nick, Serena, Stella, Valentina e Vito: leggono i libri con tono da racconto e articoli e notiziari con tono da notiziario) o tra quelle che crei tu.
 3. **Converti** quando vuoi: un capitolo, "fino al capitolo N" o tutto. Se chiudi l'app, la conversione
    riparte da dove era rimasta.
 4. **Ascolta sul telefono**: ogni capitolo pronto viene caricato sul tuo database Turso e le app di ascolto
@@ -172,7 +172,7 @@ Formato ed esempi in [docs/json-input.md](docs/json-input.md), con `backend/exam
 ## Backend da riga di comando
 
 ```bash
-cd backend && .venv/bin/python -m app.cli import --input libro.pdf --voice uomo_01 --library ~/Grillo
+cd backend && .venv/bin/python -m app.cli import --input libro.pdf --voice brando --library ~/Grillo
 ```
 
 ```bash
