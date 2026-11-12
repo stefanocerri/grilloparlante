@@ -61,7 +61,10 @@ class ConversionJob:
       self.emitter.log("info", "I capitoli scelti sono gia pronti")
       return self._finish()
 
-    voice = get_voice(book["voice"]["id"])
+    # Le voci con due campioni leggono i libri con tono da racconto e articoli e notiziari con tono da notiziario.
+    voice = get_voice(book["voice"]["id"]).for_kind(book.get("kind"))
+    if voice.sample_path.name.endswith(".notizie.wav"):
+      self.emitter.log("info", f"Voce {voice.name} con tono da notiziario")
     engine = OmniVoiceEngine(voice, book.get("speed", 1.0), log=lambda m: self.emitter.log("info", m))
     if voice.custom:
       # Le voci da campione si controllano (ed eventualmente riparano) al caricamento: se la voce è cambiata,

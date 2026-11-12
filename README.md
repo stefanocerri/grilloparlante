@@ -7,7 +7,7 @@ file sull'icona per importarlo, tasto destro per uscire. Mentre converte, accant
 
 1. **Importa** un PDF, un EPUB, un testo (TXT/MD) o un articolo/notiziario in JSON: l'app estrae il testo e
    divide i capitoli (segnalibri del PDF, indice dell'EPUB, oppure un capitolo per articolo).
-2. **Scegli la voce** tra le voci italiane incluse (Marco, Anna, Brando, Chiara, Cornelia, Dimitri ed Edoardo, le ultime cinque anche nella versione «notizie») o tra quelle che crei tu.
+2. **Scegli la voce** tra le voci italiane incluse (Marco, Anna, Brando, Chiara, Cornelia, Dimitri ed Edoardo; le ultime cinque leggono i libri con tono da racconto e articoli e notiziari con tono da notiziario) o tra quelle che crei tu.
 3. **Converti** quando vuoi: un capitolo, "fino al capitolo N" o tutto. Se chiudi l'app, la conversione
    riparte da dove era rimasta.
 4. **Ascolta sul telefono**: ogni capitolo pronto viene caricato sul tuo database Turso e le app di ascolto
@@ -180,7 +180,9 @@ cd backend && .venv/bin/python -m app.cli convert --book <id> --chapters 1-3 --l
 ```
 
 Le voci stanno in `backend/voices/`: un campione WAV con la trascrizione e un'anteprima MP3. Per
-aggiungerne una basta un campione pulito di 10–20 secondi più la riga corrispondente in `voices.json`.
+aggiungerne una basta un campione pulito di 10–20 secondi più la riga corrispondente in `voices.json`. Un secondo
+campione facoltativo `<id>.notizie.wav` (con `<id>.notizie.txt`) dà alla stessa voce il tono da notiziario per
+articoli e notiziari.
 
 ## Build
 

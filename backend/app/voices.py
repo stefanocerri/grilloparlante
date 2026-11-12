@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 VOICES_DIR = Path(__file__).resolve().parents[1] / "voices"
+# Per questi tipi di contenuto si usa il campione da notiziario (<id>.notizie.wav), se la voce ce l'ha.
+NEWS_KINDS = ("articolo", "notiziario")
 
 
 def user_voices_dir() -> Path | None:
@@ -24,6 +26,15 @@ class Voice:
   transcript: str
   preview_path: Path | None
   custom: bool = False
+  # Secondo campione, letto con tono da notiziario: lo usano articoli e notiziari.
+  news_sample_path: Path | None = None
+  news_transcript: str | None = None
+
+  def for_kind(self, kind: str | None) -> "Voice":
+    """La stessa voce con il campione adatto al tipo di contenuto: notiziario per articoli e notizie."""
+    if kind in NEWS_KINDS and self.news_sample_path and self.news_transcript:
+      return replace(self, sample_path=self.news_sample_path, transcript=self.news_transcript)
+    return self
 
 
 def _entries(directory: Path) -> list[dict]:
@@ -52,6 +63,9 @@ def _voices_in(directory: Path, custom: bool) -> list[Voice]:
     preview = directory / f"{entry['id']}.preview.mp3"
     if not sample.exists() or not transcript.exists():
       continue
+    news_sample = directory / f"{entry['id']}.notizie.wav"
+    news_transcript = directory / f"{entry['id']}.notizie.txt"
+    has_news = news_sample.exists() and news_transcript.exists()
     voices.append(
       Voice(
         id=entry["id"],
@@ -62,6 +76,8 @@ def _voices_in(directory: Path, custom: bool) -> list[Voice]:
         transcript=transcript.read_text(encoding="utf-8").strip(),
         preview_path=preview if preview.exists() else None,
         custom=custom,
+        news_sample_path=news_sample if has_news else None,
+        news_transcript=news_transcript.read_text(encoding="utf-8").strip() if has_news else None,
       )
     )
   return voices
