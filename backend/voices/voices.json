@@ -1,4 +1,14 @@
 [
   {"id": "uomo_01", "name": "Marco", "gender": "uomo", "description": "Voce maschile calda, ritmo da narratore"},
-  {"id": "donna_e", "name": "Anna", "gender": "donna", "description": "Voce femminile anziana, profonda"}
+  {"id": "donna_e", "name": "Anna", "gender": "donna", "description": "Voce femminile anziana, profonda"},
+  {"id": "brando", "name": "Brando", "gender": "uomo", "description": "Voce maschile, tono da racconto"},
+  {"id": "brando_notizie", "name": "Brando · notizie", "gender": "uomo", "description": "Voce maschile, tono da notiziario"},
+  {"id": "chiara", "name": "Chiara", "gender": "donna", "description": "Voce femminile, tono da racconto"},
+  {"id": "chiara_notizie", "name": "Chiara · notizie", "gender": "donna", "description": "Voce femminile, tono da notiziario"},
+  {"id": "cornelia", "name": "Cornelia", "gender": "donna", "description": "Voce femminile, tono da racconto"},
+  {"id": "cornelia_notizie", "name": "Cornelia · notizie", "gender": "donna", "description": "Voce femminile, tono da notiziario"},
+  {"id": "dimitri", "name": "Dimitri", "gender": "uomo", "description": "Voce maschile, tono da racconto"},
+  {"id": "dimitri_notizie", "name": "Dimitri · notizie", "gender": "uomo", "description": "Voce maschile, tono da notiziario"},
+  {"id": "edoardo", "name": "Edoardo", "gender": "uomo", "description": "Voce maschile, tono da racconto"},
+  {"id": "edoardo_notizie", "name": "Edoardo · notizie", "gender": "uomo", "description": "Voce maschile, tono da notiziario"}
 ]
