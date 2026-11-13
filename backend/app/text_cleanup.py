@@ -36,22 +36,41 @@ def _below_thousand(n: int) -> str:
 
 def number_to_words(n: int) -> str:
   """Numero intero in lettere, all'italiana (1 -> uno, 1990 -> millenovecentonovanta)."""
+  if n < 0:
+    return "meno " + number_to_words(-n)
   if n < 1000:
     return _below_thousand(n)
-  thousands, rest = divmod(n, 1000)
-  head = "mille" if thousands == 1 else _below_thousand(thousands) + "mila"
-  return head + (_below_thousand(rest) if rest else "")
+  if n < 1_000_000:
+    thousands, rest = divmod(n, 1000)
+    head = "mille" if thousands == 1 else _below_thousand(thousands) + "mila"
+    return head + (_below_thousand(rest) if rest else "")
+  for size, one, many in ((10**12, "un bilione", "bilioni"), (10**9, "un miliardo", "miliardi"), (10**6, "un milione", "milioni")):
+    if n >= size:
+      count, rest = divmod(n, size)
+      head = one if count == 1 else f"{number_to_words(count)} {many}"
+      return head + (f" {number_to_words(rest)}" if rest else "")
+  return str(n)
 
 
-def clean_for_speech(text: str) -> str:
-  """Ripulisce il testo estratto da PDF prima della lettura."""
-  text = text.replace(" ", " ")
+def clean_for_speech(text: str, extended: bool = False) -> str:
+  """Ripulisce il testo estratto da PDF prima della lettura.
+
+  Con `extended` scrive anche come si leggono abbreviazioni, simboli, date, ore, decimali e numeri romani, e
+  toglie quello che la voce non sa leggere (indirizzi web, parentesi, trattini di dialogo, parole tutte maiuscole).
+  Vale solo per il testo da leggere: il testo di riferimento dei campioni non passa mai da qui.
+  """
+  text = text.replace("\u00a0", " ")
   text = _PAGE_NUMBER_LINE.sub("", text)
   text = _HYPHEN_BREAK.sub(r"\1\2", text)   # "pro-\nblema" -> "problema"
   text = _SINGLE_NEWLINE.sub(" ", text)     # a capo dentro il paragrafo -> spazio
   text = _SUPERSCRIPTS.sub("", text)
   text = _NOTE_AFTER_PUNCT.sub("", text)
-  text = _SEPARATORS.sub(". ", text)
+  if extended:
+    from app.text_spoken import spell_out
+
+    text = spell_out(text)
+  else:
+    text = _SEPARATORS.sub(". ", text)
   # Le cifre le scriviamo noi in lettere: la voce le legge a modo suo ("Capitolo 1" diventava "Capitolo un").
   text = _NUMBER.sub(lambda match: number_to_words(int(match.group())), text)
   text = _SPACES.sub(" ", text)
