@@ -13,7 +13,8 @@ from typing import Callable
 
 import numpy as np
 
-from app.audio.mp3 import silence, write_mp3
+from app.audio.montage import join_pieces, pause_after
+from app.audio.mp3 import write_mp3
 from app.chunking.chunker import chunk_chapters
 from app.jobs.models import Chapter
 from app.library import BookStore
@@ -23,9 +24,8 @@ from app.utils.events import EventEmitter
 from app.utils.files import slugify
 from app.voices import get_voice, list_voices
 
-CHUNK_CHARS = 600  # ~30-40 s di parlato per pezzo
-PAUSE_BETWEEN_CHUNKS = 0.35
-PAUSE_AFTER_TITLE = 1.0
+# Lunghezza dei pezzi, pause e parametri della voce stanno in app/tts/settings.py.
+SETTINGS_FILE = "impostazioni.txt"
 
 
 class JobCancelled(Exception):
@@ -82,8 +82,8 @@ class ConversionJob:
       # i pezzi già pronti in work/ sono stati fatti con quella difettosa e vanno rifatti.
       engine.load()
       if engine.repaired:
-        for leftover in self.store.work_dir.glob("*.wav"):
-          leftover.unlink(missing_ok=True)
+        self._clear_work()
+    self._check_work_label(f"{engine.settings.label} {voice.sample_path.name} {engine.speed:g}")
     total_chars = sum(entry["chars"] for entry in todo) or 1
     done_chars = 0
     session = {"chars": 0, "started": time.monotonic()}
@@ -131,22 +131,25 @@ class ConversionJob:
   def _synthesize(self, engine, chapter, entry, label, done_chars, total_chars, session) -> np.ndarray:
     import soundfile as sf
 
+    settings = engine.settings
     announce = self.book.get("readTitles", True) and _should_announce(chapter.title)
     # Ripulito anche qui (non solo all'importazione), così vale pure per i libri importati prima.
-    chapter.text = clean_for_speech(chapter.text)
-    spoken_title = clean_for_speech(chapter.title)
+    chapter.text = clean_for_speech(chapter.text, extended=settings.extended_cleanup)
+    spoken_title = clean_for_speech(chapter.title, extended=settings.extended_cleanup)
     if announce:
       # Il titolo viene annunciato a parte (con una pausa): toglilo dall'inizio del testo
       # se c'e gia, altrimenti verrebbe letto due volte.
       chapter.text = _strip_leading_title(chapter.text, spoken_title) or chapter.text
-    parts = [chunk.text for chunk in chunk_chapters([chapter], CHUNK_CHARS)]
+    chunks = chunk_chapters([chapter], settings.chunk_chars, settings.min_chunk_chars, settings.sentence_chunks)
+    # (testo, pausa da mettere dopo)
+    parts = [(chunk.text, pause_after(chunk.text, chunk.ends_paragraph, chunk.scene_break, settings)) for chunk in chunks]
     if announce:
-      parts.insert(0, spoken_title.rstrip(".") + ".")
+      parts.insert(0, (spoken_title.rstrip(".") + ".", settings.pause_title))
 
     self.store.work_dir.mkdir(parents=True, exist_ok=True)
-    pieces: list[np.ndarray] = []
+    pieces: list[tuple[np.ndarray, float]] = []
     chapter_done = 0
-    for part_index, text in enumerate(parts):
+    for part_index, (text, pause) in enumerate(parts):
       self._ensure_not_cancelled()
       cached = self.store.chunk_file(entry["index"], part_index)
       if cached.exists():
@@ -157,8 +160,7 @@ class ConversionJob:
         session["chars"] += len(text)
 
       is_title = announce and part_index == 0
-      pieces.append(audio)
-      pieces.append(silence(PAUSE_AFTER_TITLE if is_title else PAUSE_BETWEEN_CHUNKS, SAMPLE_RATE))
+      pieces.append((audio, pause))
       if not is_title:
         chapter_done = min(chapter_done + len(text), entry["chars"])
 
@@ -170,7 +172,31 @@ class ConversionJob:
         etaSeconds=self._eta(session, total_chars - done_chars - chapter_done),
       )
 
-    return np.concatenate(pieces) if pieces else np.zeros(1, dtype=np.float32)
+    return join_pieces(pieces, settings, SAMPLE_RATE)
+
+  def _clear_work(self) -> None:
+    for leftover in self.store.work_dir.glob("*.wav"):
+      leftover.unlink(missing_ok=True)
+
+  def _check_work_label(self, label: str) -> None:
+    """I pezzi in work/ valgono solo per le impostazioni con cui sono stati fatti (divisione del testo, voce,
+    parametri): se da allora sono cambiate, una conversione ripresa a metà monterebbe pezzi che non combaciano.
+    L'etichetta sta in work/impostazioni.txt; senza etichetta i pezzi sono quelli della lettura classica."""
+    from app.tts.settings import CLASSICO
+
+    work = self.store.work_dir
+    work.mkdir(parents=True, exist_ok=True)
+    marker = work / SETTINGS_FILE
+    try:
+      previous = marker.read_text(encoding="utf-8").strip()
+    except OSError:
+      previous = ""
+    if previous != label:
+      legacy = not previous and label.startswith(CLASSICO.label + " ")
+      if not legacy and any(work.glob("*.wav")):
+        self.emitter.log("info", "Le impostazioni della voce sono cambiate: rifaccio i pezzi lasciati a metà")
+        self._clear_work()
+      marker.write_text(label, encoding="utf-8")
 
   def _eta(self, session: dict, remaining_chars: int) -> int | None:
     elapsed = time.monotonic() - session["started"]

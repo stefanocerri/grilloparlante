@@ -5,7 +5,7 @@ books/<book_id>/
   cover.jpg|png      copertina, se il PDF ne ha una
   text/001.txt       testo pulito di ogni capitolo
   chapters/001.mp3   audio dei capitoli convertiti
-  work/              pezzi WAV intermedi (cancellati a capitolo finito)
+  work/              pezzi WAV intermedi (cancellati a capitolo finito) e impostazioni.txt, con cui sono stati fatti
 """
 
 from __future__ import annotations
