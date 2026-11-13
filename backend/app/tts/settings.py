@@ -99,8 +99,12 @@ NATURALE = NarrationSettings(
   extended_cleanup=True,
   preprocess_prompt=False,
   own_duration=True,
+  # Più tempo non rallenta le parole: provato 1,08 e 1,15 su stella e brando, crescono solo le pause (fino a 1 s).
   duration_stretch=1.0,
   num_step=48,
+  # Parametri provati uno alla volta su stella, brando e chiara notizie (guidance 1,5/2,5, t_shift 0,3,
+  # class_temperature 0,2, position_temperature 3): t_shift 0,3 è peggiore (più errori, parole più veloci), gli
+  # altri stanno dentro il rumore di una sola lettura. Restano i valori di OmniVoice finché l'ascolto non dice altro.
   guidance_scale=2.0,
   t_shift=0.1,
   class_temperature=0.0,
