@@ -83,7 +83,9 @@ class ConversionJob:
       engine.load()
       if engine.repaired:
         self._clear_work()
-    self._check_work_label(f"{engine.settings.label} {voice.sample_path.name} {engine.speed:g}")
+    # Il campione conta con la sua dimensione: se viene sostituito, i pezzi fatti con quello vecchio non valgono più.
+    sample = f"{voice.sample_path.name}:{voice.sample_path.stat().st_size}"
+    self._check_work_label(f"{engine.settings.label} {sample} {engine.speed:g}")
     total_chars = sum(entry["chars"] for entry in todo) or 1
     done_chars = 0
     session = {"chars": 0, "started": time.monotonic()}

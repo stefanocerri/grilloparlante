@@ -109,7 +109,7 @@ def test_pezzi_gia_pronti_riusati_con_le_stesse_impostazioni(library):
   work = library / "books" / "libro" / "work"
   work.mkdir()
   voice = get_voice("stella")
-  (work / SETTINGS_FILE).write_text(f"{NATURALE.label} {voice.sample_path.name} 1", encoding="utf-8")
+  (work / SETTINGS_FILE).write_text(f"{NATURALE.label} {voice.sample_path.name}:{voice.sample_path.stat().st_size} 1", encoding="utf-8")
   sf.write(str(work / "001-0000.wav"), FakeEngine(voice).synthesize("Capitolo terzo."), RATE)
   FakeEngine.made = []
   run(library)
