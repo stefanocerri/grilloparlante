@@ -306,7 +306,8 @@ def spell_out(text: str) -> str:
   text = re.sub(r"[£]", " sterline ", text)
   text = _NUMBER_SIGN.sub(lambda m: "Numero " if m.group()[0] == "N" and _starts_sentence(m.string[:m.start()]) else "numero ", text)
   text = _ORDINAL_MARK.sub(lambda m: ordinal_to_words(int(m.group(1)), m.group(2) == "ª"), text)
-  text = _RANGE.sub(lambda m: f"{number_to_words(int(m.group(1)))}, {number_to_words(int(m.group(2)))}", text)
+  # Senza virgola: «duemilaotto duemilanove» si legge di seguito, come si dice.
+  text = _RANGE.sub(lambda m: f"{number_to_words(int(m.group(1)))} {number_to_words(int(m.group(2)))}", text)
   text = _THOUSANDS.sub(lambda m: _number(m.group()), text)
   text = _DECIMAL.sub(lambda m: _number(m.group()), text)
   text = _PERCENT.sub(" per cento", text)

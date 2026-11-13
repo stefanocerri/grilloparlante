@@ -32,7 +32,7 @@ def test_abbreviazioni(written, read):
   ("Tom & Jerry.", "Tom e Jerry."),
   ("Fuori ci sono 30°C.", "Fuori ci sono trenta gradi."),
   ("Fa 2 + 2 = 4.", "Fa due più due uguale a quattro."),
-  ("La guerra del 1914-1918.", "La guerra del millenovecentoquattordici, millenovecentodiciotto."),
+  ("La guerra del 1914-1918.", "La guerra del millenovecentoquattordici millenovecentodiciotto."),
 ])
 def test_simboli(written, read):
   assert spoken(written) == read

@@ -85,11 +85,16 @@ def _split_long_sentence(sentence: str, limit: int) -> list[str]:
 
 
 def _split_paragraph_by_sentence(paragraph: str, limit: int, minimum: int) -> list[str]:
-  if len(paragraph) <= limit:
+  if len(paragraph) <= limit * _OVERFLOW and len(split_sentences(paragraph)) == 1 or len(paragraph) <= limit:
     return [paragraph]
   parts: list[str] = []
   for sentence in split_sentences(paragraph):
-    parts.extend(_split_long_sentence(sentence, limit))
+    # Una frase poco più lunga del limite resta intera: divisa a metà, l'intonazione ripartirebbe dopo i due punti
+    # o la virgola. Si divide solo quando è davvero troppo lunga.
+    if len(sentence) <= limit * _OVERFLOW:
+      parts.append(sentence)
+    else:
+      parts.extend(_split_long_sentence(sentence, limit))
   pieces = _pack(parts, limit)
   # Un avanzo cortissimo si unisce al pezzo prima: sui pezzi brevi la voce aggiunge suoni che non ci sono.
   if len(pieces) > 1 and len(pieces[-1]) < minimum and len(pieces[-2]) + 1 + len(pieces[-1]) <= limit * _OVERFLOW:

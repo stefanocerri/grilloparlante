@@ -90,3 +90,11 @@ def test_divisione_classica_invariata():
   assert len(chunks) == 1
   assert chunks[0].text == f"{paragraph}\n\n{paragraph}\n\nCoda breve."
   assert chunks[0].id == "c-part-001"
+
+
+def test_frase_poco_oltre_il_limite_resta_intera():
+  # 300 caratteri circa: dividerla ai due punti farebbe ripartire l'intonazione a metà frase.
+  long_sentence = "Il professore ha presentato i dati: " + "parola " * 36 + "fine."
+  assert LIMIT < len(long_sentence) <= LIMIT * 1.2
+  chunks = chunks_of(f"{long_sentence} {sentence(14)}")
+  assert [chunk.text for chunk in chunks] == [long_sentence, sentence(14)]
