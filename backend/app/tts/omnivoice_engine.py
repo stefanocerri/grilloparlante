@@ -55,7 +55,7 @@ def prefetch_model(log: Callable[[str], None] = print) -> str:
 
 # Controllo dei pezzi: fuori da questi limiti il pezzo si rigenera una volta.
 DURATION_RATIO_RANGE = (0.6, 1.8)   # durata ottenuta / durata attesa
-MAX_INNER_PAUSE = 0.95              # un silenzio così lungo dentro un pezzo è un buco, non una pausa
+MAX_INNER_PAUSE = 0.97              # OmniVoice accorcia a 1 s i silenzi più lunghi: se ne resta uno così, era un buco
 MAX_CLIPPED = 0.001                 # quota di campioni a fondo scala
 
 
