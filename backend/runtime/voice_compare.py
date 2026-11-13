@@ -117,6 +117,25 @@ def word_error_rate(reference: list[str], heard: list[str]) -> float:
   return previous[-1] / max(len(reference), 1)
 
 
+def transcribe(model, audio: np.ndarray, limit: float = 25.0) -> str:
+  """Trascrizione con Whisper, a tratti sotto i 30 secondi (il suo limite) tagliati nelle pause."""
+  profile = speech_profile(audio, SAMPLE_RATE)
+  cuts = [0.0]
+  for start, end in profile.pauses:
+    middle = (start + end) / 2
+    following = min((s for s, _ in profile.pauses if s > end), default=profile.seconds)
+    # Si taglia in questa pausa se arrivare alla prossima farebbe superare il limite.
+    if following - cuts[-1] > limit and middle - cuts[-1] > 1.0:
+      cuts.append(middle)
+  cuts.append(profile.seconds)
+  texts = []
+  for start, end in zip(cuts, cuts[1:]):
+    segment = audio[int(start * SAMPLE_RATE):int(end * SAMPLE_RATE)]
+    for offset in range(0, len(segment), int(28 * SAMPLE_RATE)):  # senza pause: tratti fissi
+      texts.append(model.transcribe((segment[np.newaxis, offset:offset + int(28 * SAMPLE_RATE)], SAMPLE_RATE)).strip())
+  return " ".join(text for text in texts if text)
+
+
 def pitch_range(audio: np.ndarray) -> dict | None:
   """Altezza media della voce e sua escursione (dal 10° al 90° percentile, in semitoni): piatta = cantilena."""
   try:
@@ -222,7 +241,7 @@ def main() -> None:
         "impostazioni": settings.label,
       })
       if args.whisper:
-        heard = model.transcribe((audio[np.newaxis, :], SAMPLE_RATE)).strip()
+        heard = transcribe(model, audio)
         # Whisper scrive le cifre come cifre: si riportano in lettere come nel testo letto.
         result["trascrizione"] = heard
         result["errori_parole"] = round(word_error_rate(words(spoken), words(clean_for_speech(heard, extended=True))), 4)
