@@ -14,9 +14,14 @@ e `<id>.notizie.wav` / `<id>.notizie.txt` con un brano da notiziario, usato per 
 resta una voce sola: il campione lo sceglie la conversione in base al tipo di contenuto. Tutte le voci incluse li hanno
 entrambi.
 
-Prova rapida:
+I campioni durano 12–18 secondi, cominciano e finiscono in una pausa, hanno il picco a 0,9 e il testo finisce
+sempre con la punteggiatura: vengono passati a OmniVoice così come sono (`preprocess_prompt=False`), quindi il
+`.txt` deve corrispondere esattamente all'audio. I campioni di racconto di `morgaine`, `serena` e `stella` erano
+più lunghi (19–22 s, oltre la soglia consigliata da OmniVoice) e sono stati accorciati alla fine di «Solo silenzio.».
+`backend/tests` controlla durata, formato e punteggiatura finale di tutti i campioni.
+
+Prova rapida (lettura classica e naturale dello stesso brano, con le misure):
 
 ```bash
-python backend/runtime/voice_compare.py --engines omnivoice \
-  --reference backend/voices/brando.wav --reference-text-file backend/voices/brando.txt
+backend/.venv/bin/python backend/runtime/voice_compare.py --voci brando,stella
 ```

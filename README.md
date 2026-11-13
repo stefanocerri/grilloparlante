@@ -98,6 +98,34 @@ stanno in `info.json` nella cartella del libro (il backend non lo tocca, quindi 
 converte); la cartella e l'id del libro non cambiano. Le app collegate ricevono titolo, autore, `info` e copertina
 aggiornati. La ricerca automatica si spegne in Impostazioni → **Informazioni sui libri**.
 
+## Come legge
+
+Le voci incluse leggono con una serie di accorgimenti che rendono la lettura più naturale:
+
+- **il testo viene scritto come si legge**: «sig.» diventa «signor», «3,5%» «tre virgola cinque per cento»,
+  «12/11/2026» «dodici novembre duemilaventisei», «Luigi XIV» «Luigi quattordicesimo»; trattini di dialogo e
+  parentesi diventano pause, gli indirizzi web si riducono al nome del sito;
+- **una frase alla volta**: il testo è diviso in pezzi brevi, sempre a fine frase, così l'intonazione non riparte
+  a metà di un pensiero;
+- **il tempo giusto per ogni frase**: la durata di ogni pezzo è calcolata sulla velocità vera della voce e sulla
+  punteggiatura, così le parole non escono attaccate;
+- **pause diverse**: breve tra due frasi, più lunga a fine paragrafo, più lunga ancora dopo il titolo e ai cambi
+  di scena (`***`);
+- **volume uniforme** tra un pezzo e l'altro, e i pezzi venuti male si rifanno da soli.
+
+Le voci create da un tuo campione leggono come prima (profilo «classico»): per provare su di loro la lettura
+nuova avvia l'app con `GRILLO_PROFILO=naturale`. I valori stanno tutti in `backend/app/tts/settings.py`.
+
+Per sentire la differenza tra due impostazioni sullo stesso brano, o su un libro già importato:
+
+```bash
+backend/.venv/bin/python backend/runtime/voice_compare.py --voci stella,brando --libro "titolo del libro"
+```
+
+Lo script salva gli MP3 affiancati e un file `misure.json` (velocità rispetto al campione, pause, intonazione e,
+con `--whisper`, gli errori sulle parole). I test del backend (serve `pytest`: `backend/.venv/bin/pip install pytest`):
+`backend/.venv/bin/python -m pytest backend/tests`.
+
 ## Voci da un campione
 
 Oltre alle voci incluse puoi crearne di nuove: Impostazioni → **Voci** → "Nuova voce da un campione", oppure

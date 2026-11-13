@@ -34,9 +34,32 @@ PDF/EPUB/TXT/JSON ──► [app Mac: barra dei menu] ──► backend Python (
     - JSON: un capitolo per articolo (vedi [json-input.md](json-input.md));
     - altrimenti indice → titoli → parti da ~15 min.
     Poi pulisce il testo e salva `book.json` + `text/NNN.txt`.
-  - `convert`: per ogni capitolo scelto, pezzi da ~600 caratteri → OmniVoice → WAV in `work/`
-    (ripresa automatica) → MP3 48 kbps in `chapters/NNN.mp3`. Il titolo del capitolo viene annunciato
+  - `convert`: per ogni capitolo scelto, testo scritto come si legge → pezzi → OmniVoice → WAV in `work/`
+    (ripresa automatica) → montaggio → MP3 48 kbps in `chapters/NNN.mp3`. Il titolo del capitolo viene annunciato
     solo per libri e documentazione (`readTitles`), non per articoli e notizie.
+    Tutte le impostazioni della lettura stanno in `tts/settings.py`, in due profili:
+    - **naturale** (voci incluse):
+      - `text_spoken.py`: abbreviazioni, simboli, date, ore, decimali e numeri romani scritti in lettere;
+        trattini di dialogo e parentesi diventano pause, le righe TUTTE MAIUSCOLE minuscole;
+      - `chunking/chunker.py`: pezzi fino a 280 caratteri tagliati solo a fine frase, mai a cavallo di un
+        paragrafo (quelli sotto i 70 caratteri si uniscono al vicino); ogni pezzo sa se chiude un paragrafo o una
+        scena (`***`). OmniVoice sopra i 30 secondi ridividerebbe il testo per conto suo, azzerando l'intonazione
+        dove capita, e cancella gli a capo senza lasciare uno spazio;
+      - `tts/pacing.py`: la durata di ogni pezzo la calcoliamo noi dal campione della voce (lettere al secondo
+        senza le pause, più un tempo per ogni segno di punteggiatura) e la passiamo a OmniVoice con `duration=`.
+        Il campione si usa con `preprocess_prompt=False`: altrimenti OmniVoice ne accorcia le pause prima di
+        misurarlo, la voce sembra più veloce (fino al 10%) e le parole escono attaccate;
+      - `tts/omnivoice_engine.py`: 48 passi di generazione; un pezzo con durata fuori scala, un buco di silenzio
+        o il volume a fondo scala si rigenera una volta;
+      - `audio/montage.py`: ogni pezzo portato allo stesso volume e rifilato alla voce, poi pause precise:
+        0,6 s tra frasi, 1,0 s a fine paragrafo, 1,4 s dopo il titolo, 1,9 s al cambio di scena, con una
+        dissolvenza di 15 ms alle giunture.
+    - **classico** (voci create dall'utente): la lettura di prima, senza nessuna di queste modifiche (pezzi da
+      600 caratteri, 0,35 s fissi tra un pezzo e l'altro, parametri di default di OmniVoice).
+    `work/impostazioni.txt` ricorda con quali impostazioni, voce e velocità sono stati fatti i pezzi: se cambiano,
+    i pezzi lasciati a metà si rifanno. Variabili d'ambiente: `GRILLO_NUM_STEP`, `GRILLO_GUIDANCE`,
+    `GRILLO_PROFILO=naturale|classico` (oltre a `GRILLO_DEVICE` e `GRILLO_DTYPE`).
+    Confronto tra impostazioni: `backend/runtime/voice_compare.py`; test: `python -m pytest backend/tests`.
 
 ## Turso
 
