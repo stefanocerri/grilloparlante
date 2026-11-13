@@ -48,3 +48,7 @@ class Chunk:
   index: int
   text: str
   output_path: str | None = None
+  # Il pezzo chiude un paragrafo: dopo ci vuole una pausa più lunga che tra due frasi.
+  ends_paragraph: bool = True
+  # Dopo il pezzo c'è un cambio di scena (una riga di soli asterischi o trattini).
+  scene_break: bool = False
