@@ -49,14 +49,22 @@ def _frame_rms(audio: np.ndarray, sample_rate: int) -> np.ndarray:
   return np.sqrt(np.mean(frames * frames, axis=1))
 
 
-def voiced_frames(audio: np.ndarray, sample_rate: int) -> np.ndarray:
+def voiced_frames(audio: np.ndarray, sample_rate: int, silence_db: float = SILENCE_DB) -> np.ndarray:
   """Per ogni finestra da 10 ms, True se c'è voce."""
   rms = _frame_rms(audio, sample_rate)
   if rms.size == 0:
     return np.zeros(0, dtype=bool)
   loud = float(np.percentile(rms, 95))
-  threshold = max(loud * 10 ** (SILENCE_DB / 20), 1e-4)
+  threshold = max(loud * 10 ** (silence_db / 20), 1e-4)
   return rms > threshold
+
+
+def speech_bounds(audio: np.ndarray, sample_rate: int, silence_db: float) -> tuple[float, float] | None:
+  """Inizio e fine della voce in secondi, con la soglia data; None se non c'è voce."""
+  indices = np.flatnonzero(voiced_frames(audio, sample_rate, silence_db))
+  if indices.size == 0:
+    return None
+  return int(indices[0]) * FRAME_SECONDS, (int(indices[-1]) + 1) * FRAME_SECONDS
 
 
 def speech_profile(audio: np.ndarray, sample_rate: int, min_pause: float = MIN_PAUSE_SECONDS) -> SpeechProfile:

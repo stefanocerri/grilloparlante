@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
@@ -125,8 +127,6 @@ def test_pezzi_venuti_male():
 
 
 def test_profilo_per_tipo_di_voce(monkeypatch):
-  from dataclasses import replace
-
   monkeypatch.delenv("GRILLO_PROFILO", raising=False)
   monkeypatch.delenv("GRILLO_NUM_STEP", raising=False)
   bundled = list_voices()[0]
@@ -138,3 +138,12 @@ def test_profilo_per_tipo_di_voce(monkeypatch):
   monkeypatch.setenv("GRILLO_NUM_STEP", "24")
   assert settings_for(bundled).num_step == 24
   assert settings_for(bundled).label != NATURALE.label
+
+
+def test_attacchi_deboli_non_tagliati():
+  # Una parola che comincia piano (40 dB sotto il resto) deve restare intera dopo la rifilatura.
+  soft = tone(0.15, 0.003)
+  piece = np.concatenate([quiet(0.3), soft, tone(1.0), quiet(0.3)])
+  audio = join_pieces([(piece, 0.6), (piece, 0.6)], replace(NATURALE, level_rms=0.0), RATE)
+  energy = float(np.sum(audio.astype(np.float64) ** 2))
+  assert energy == pytest.approx(2 * float(np.sum(piece.astype(np.float64) ** 2)), rel=1e-4)

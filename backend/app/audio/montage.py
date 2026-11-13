@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import numpy as np
 
-from app.audio.measure import speech_profile, speech_rms
+from app.audio.measure import speech_bounds, speech_rms
 from app.audio.mp3 import silence
 from app.tts.settings import NarrationSettings
 
-# Margine lasciato prima e dopo la voce quando si rifila un pezzo: ci stanno l'attacco e la coda delle parole.
-EDGE_MARGIN = 0.05
+# Margine lasciato prima e dopo la voce quando si rifila un pezzo. Largo apposta: le parole che cominciano piano
+# (una «s», una «f», un sussurro) stanno sotto la soglia della voce, e con un margine stretto uscivano tagliate.
+EDGE_MARGIN = 0.12
+# Soglia per trovare i bordi della voce, molto più bassa di quella delle pause: nel dubbio è voce.
+EDGE_DB = -55.0
 # Un pezzo che finisce con una virgola (frase lunghissima divisa in due) vuole una pausa da virgola.
 CLAUSE_PAUSE_FACTOR = 0.5
 # Silenzio all'inizio e alla fine del capitolo.
@@ -50,12 +53,23 @@ def level(audio: np.ndarray, sample_rate: int, target_rms: float) -> np.ndarray:
 
 def trim_to_speech(audio: np.ndarray, sample_rate: int, margin: float = EDGE_MARGIN) -> np.ndarray:
   """Toglie il silenzio ai bordi lasciando `margin` secondi per lato."""
-  profile = speech_profile(audio, sample_rate)
-  if profile.lead >= profile.seconds:
+  bounds = speech_bounds(audio, sample_rate, EDGE_DB)
+  if bounds is None:
     return audio  # nessuna voce trovata: meglio non toccare
-  start = max(0, int((profile.lead - margin) * sample_rate))
-  end = min(len(audio), int((profile.seconds - profile.trail + margin) * sample_rate))
+  start = max(0, int((bounds[0] - margin) * sample_rate))
+  end = min(len(audio), int((bounds[1] + margin) * sample_rate))
   return audio[start:end]
+
+
+def _pad_to_margin(audio: np.ndarray, sample_rate: int, margin: float) -> np.ndarray:
+  """Se ai bordi c'è meno silenzio del margine (la voce arriva fino in fondo), lo aggiunge: la dissolvenza
+  non deve mai cadere sulla voce."""
+  bounds = speech_bounds(audio, sample_rate, EDGE_DB)
+  if bounds is None:
+    return audio
+  before = max(0.0, margin - bounds[0])
+  after = max(0.0, margin - (len(audio) / sample_rate - bounds[1]))
+  return np.concatenate([silence(before, sample_rate), audio, silence(after, sample_rate)])
 
 
 def fade_edges(audio: np.ndarray, sample_rate: int, seconds: float) -> np.ndarray:
@@ -84,6 +98,7 @@ def join_pieces(pieces: list[tuple[np.ndarray, float]], settings: NarrationSetti
   parts.append(silence(CHAPTER_LEAD, sample_rate))
   for position, (audio, pause) in enumerate(pieces):
     audio = trim_to_speech(level(audio, sample_rate, settings.level_rms), sample_rate)
+    audio = _pad_to_margin(audio, sample_rate, EDGE_MARGIN)
     parts.append(fade_edges(audio, sample_rate, settings.edge_fade))
     last = position == len(pieces) - 1
     # Il margine dei due pezzi vicini è già silenzio: si toglie dalla pausa.

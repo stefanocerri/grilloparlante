@@ -42,7 +42,7 @@ PDF/EPUB/TXT/JSON ──► [app Mac: barra dei menu] ──► backend Python (
       - `text_spoken.py`: abbreviazioni, simboli, date, ore, decimali e numeri romani scritti in lettere;
         trattini di dialogo e parentesi diventano pause, le righe TUTTE MAIUSCOLE minuscole;
       - `chunking/chunker.py`: pezzi fino a 280 caratteri tagliati solo a fine frase, mai a cavallo di un
-        paragrafo (quelli sotto i 70 caratteri si uniscono al vicino); ogni pezzo sa se chiude un paragrafo o una
+        paragrafo (quelli sotto i 120 caratteri si uniscono al vicino); ogni pezzo sa se chiude un paragrafo o una
         scena (`***`). OmniVoice sopra i 30 secondi ridividerebbe il testo per conto suo, azzerando l'intonazione
         dove capita, e cancella gli a capo senza lasciare uno spazio;
       - `tts/pacing.py`: la durata di ogni pezzo la calcoliamo noi dal campione della voce (lettere al secondo

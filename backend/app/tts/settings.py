@@ -93,7 +93,8 @@ NATURALE = NarrationSettings(
   name="naturale",
   # ~15-18 s di parlato: sotto i 30 s oltre i quali OmniVoice ridivide il testo per conto suo.
   chunk_chars=280,
-  min_chunk_chars=70,
+  # Sui pezzi corti la voce aggiunge suoni o parole del campione: meglio unirli al vicino.
+  min_chunk_chars=120,
   sentence_chunks=True,
   extended_cleanup=True,
   preprocess_prompt=False,
