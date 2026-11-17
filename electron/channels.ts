@@ -273,14 +273,15 @@ export class ChannelSync {
   }
 
   async removeRemote(bookId: string) {
-    delete this.ledger[bookId];
-    writeJson(this.ledgerFile, this.ledger);
+    // App scollegata: il libro resta nel registro e viene tolto dal suo database al prossimo collegamento.
     if (!this.db()) return;
     await this.client().batch([
       { sql: "DELETE FROM chapter_audio WHERE book_id = ?", args: [bookId] },
       { sql: "DELETE FROM chapter_text WHERE book_id = ?", args: [bookId] },
       { sql: "DELETE FROM books WHERE id = ?", args: [bookId] }
     ]);
+    delete this.ledger[bookId];
+    writeJson(this.ledgerFile, this.ledger);
   }
 
   private setStatus(status: SyncStatus) {
