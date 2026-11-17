@@ -102,14 +102,25 @@ export function popoverVisible() {
   return Boolean(popover && !popover.isDestroyed() && popover.isVisible());
 }
 
-/** Esegue un'azione con un dialogo di sistema senza che il pannello si chiuda. */
+/**
+ * Esegue un'azione con un dialogo di sistema (scelta file, conferma) e poi riapre il pannello.
+ * Il pannello sta sempre in primo piano: durante il dialogo si toglie di mezzo, altrimenti il dialogo si apre sotto
+ * e non si riesce a cliccarlo. L'app va portata davanti, perché un'app della barra dei menu spesso non è attiva.
+ */
 export async function withPopoverPinned<T>(action: () => Promise<T>): Promise<T> {
   keepOpen += 1;
+  const win = popover && !popover.isDestroyed() ? popover : null;
+  if (win) {
+    win.setAlwaysOnTop(false);
+    win.hide();
+  }
+  if (process.platform === "darwin") app.focus({ steal: true });
   try {
     return await action();
   } finally {
     keepOpen -= 1;
     if (popover && !popover.isDestroyed()) {
+      popover.setAlwaysOnTop(true);
       popover.show();
       popover.focus();
     }

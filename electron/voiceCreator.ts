@@ -90,7 +90,7 @@ export class VoiceCreator {
     }
     if (!entries.some((entry) => entry.id === voiceId)) throw new Error("Questa voce non è tra quelle create da te.");
     fs.writeFileSync(index, JSON.stringify(entries.filter((entry) => entry.id !== voiceId), null, 2));
-    for (const suffix of [".wav", ".txt", ".preview.mp3"]) fs.rmSync(path.join(dir, voiceId + suffix), { force: true });
+    for (const suffix of [".wav", ".txt", ".preview.mp3", ".orig.wav", ".orig.txt"]) fs.rmSync(path.join(dir, voiceId + suffix), { force: true });
     this.onChange();
   }
 }

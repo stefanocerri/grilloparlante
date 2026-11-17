@@ -11,3 +11,5 @@ __pycache__/
 *.pyc
 backend/.venv/
 *.log
+.pytest_cache/
+confronto-voci/

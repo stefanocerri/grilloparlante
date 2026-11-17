@@ -7,7 +7,7 @@ file sull'icona per importarlo, tasto destro per uscire. Mentre converte, accant
 
 1. **Importa** un PDF, un EPUB, un testo (TXT/MD) o un articolo/notiziario in JSON: l'app estrae il testo e
    divide i capitoli (segnalibri del PDF, indice dell'EPUB, oppure un capitolo per articolo).
-2. **Scegli la voce** tra le voci italiane incluse (Marco e Anna) o tra quelle che crei tu.
+2. **Scegli la voce** tra le 12 voci italiane incluse (Brando, Chiara, Cornelia, Dimitri, Edoardo, Gianluigi, Morgaine, Nick, Serena, Stella, Valentina e Vito: leggono i libri con tono da racconto e articoli e notiziari con tono da notiziario) o tra quelle che crei tu.
 3. **Converti** quando vuoi: un capitolo, "fino al capitolo N" o tutto. Se chiudi l'app, la conversione
    riparte da dove era rimasta.
 4. **Ascolta sul telefono**: ogni capitolo pronto viene caricato sul tuo database Turso e le app di ascolto
@@ -72,6 +72,60 @@ Dal pannello, l'icona **Libreria** (o "Leggi e ascolta" nella scheda di un libro
 La copia sul Mac sta in `~/Documents/Grillo Parlante/books/<id>/` (testo in `text/`, audio in `chapters/`):
 "Apri nel Finder" la mostra.
 
+## Informazioni sul libro
+
+Grillo raccoglie da solo editore, anno, lingua, ISBN, numero di pagine, argomenti, descrizione e copertina:
+
+1. **Dal file**: metadati dell'EPUB (editore, data, lingua, ISBN, descrizione, argomenti) e del PDF; l'ISBN lo cerca
+   anche nel testo (pagina del copyright, colophon). I titoli finti che certi programmi scrivono nel PDF
+   ("Microsoft Word - documento1.docx", "untitled"…) vengono scartati a favore del nome del file.
+2. **Online**, dopo l'importazione: [Google Books](https://developers.google.com/books) e
+   [Open Library](https://openlibrary.org/developers/api), gratis e senza account. Prima per ISBN, poi per titolo
+   e autore. Il risultato si applica da solo solo se è sicuramente lo stesso libro (stesso ISBN, o titolo e autore
+   molto simili); così anche titolo e autore non dipendono più dai metadati del PDF. Si mandano solo titolo, autore
+   e ISBN. I libri importati prima vengono cercati all'avvio, uno alla volta.
+3. **A mano**: nella scheda del libro (o in Libreria → **Informazioni**) la lente cerca online e fa scegliere tra i
+   risultati, la matita apre il modulo per correggere titolo, autore, editore, anno, lingua, ISBN, argomenti,
+   descrizione e copertina. Le correzioni a mano vincono sempre; "Ripristina automatiche" le toglie.
+
+Tutto questo vale anche **dopo la conversione**: l'audio non contiene titolo né autore, quindi collegare o correggere
+i dati non richiede di riconvertire nulla, e le app collegate ricevono subito scheda e copertina nuove. Le ricerche
+fallite (per esempio Mac offline all'importazione) si ritentano da sole all'avvio e ogni ora; in Impostazioni →
+**Informazioni sui libri** "Collega ora" cerca i dati per tutti i libri che non li hanno ancora.
+
+Ordine: a mano → online per titolo e autore → file per gli altri campi → online. Le informazioni online e a mano
+stanno in `info.json` nella cartella del libro (il backend non lo tocca, quindi si può correggere anche mentre
+converte); la cartella e l'id del libro non cambiano. Le app collegate ricevono titolo, autore, `info` e copertina
+aggiornati. La ricerca automatica si spegne in Impostazioni → **Informazioni sui libri**.
+
+## Come legge
+
+Le voci incluse leggono con una serie di accorgimenti che rendono la lettura più naturale:
+
+- **il testo viene scritto come si legge**: «sig.» diventa «signor», «3,5%» «tre virgola cinque per cento»,
+  «12/11/2026» «dodici novembre duemilaventisei», «Luigi XIV» «Luigi quattordicesimo»; trattini di dialogo e
+  parentesi diventano pause, gli indirizzi web si riducono al nome del sito;
+- **una frase alla volta**: il testo è diviso in pezzi brevi, sempre a fine frase, così l'intonazione non riparte
+  a metà di un pensiero;
+- **il tempo giusto per ogni frase**: la durata di ogni pezzo è calcolata sulla velocità vera della voce e sulla
+  punteggiatura, così le parole non escono attaccate;
+- **pause diverse**: breve tra due frasi, più lunga a fine paragrafo, più lunga ancora dopo il titolo e ai cambi
+  di scena (`***`);
+- **volume uniforme** tra un pezzo e l'altro, e i pezzi venuti male si rifanno da soli.
+
+Le voci create da un tuo campione leggono come prima (profilo «classico»): per provare su di loro la lettura
+nuova avvia l'app con `GRILLO_PROFILO=naturale`. I valori stanno tutti in `backend/app/tts/settings.py`.
+
+Per sentire la differenza tra due impostazioni sullo stesso brano, o su un libro già importato:
+
+```bash
+backend/.venv/bin/python backend/runtime/voice_compare.py --voci stella,brando --libro "titolo del libro"
+```
+
+Lo script salva gli MP3 affiancati e un file `misure.json` (velocità rispetto al campione, pause, intonazione e,
+con `--whisper`, gli errori sulle parole). I test del backend (serve `pytest`: `backend/.venv/bin/pip install pytest`):
+`backend/.venv/bin/python -m pytest backend/tests`.
+
 ## Voci da un campione
 
 Oltre alle voci incluse puoi crearne di nuove: Impostazioni → **Voci** → "Nuova voce da un campione", oppure
@@ -79,6 +133,10 @@ il riquadro "Nuova voce" quando scegli la voce di un libro. Carichi un audio di 
 che parla (WAV, MP3, M4A, FLAC), le dai un nome e Grillo la clona con OmniVoice e crea un'anteprima. La
 trascrizione è facoltativa: se manca la ricava Whisper (scaricato la prima volta, circa 1,6 GB). Le voci create
 stanno in `~/Library/Application Support/Grillo parlante/voices/` (backend: `python -m app.cli voice-create`).
+Le voci create prima del taglio in una pausa vera (che ripetevano un pezzo di parola, tipo «ancora un», all'inizio
+di ogni frase) si riparano da sole alla prima conversione: il campione si accorcia all'ultima pausa e Whisper lo
+ritrascrive; gli originali restano come `<id>.orig.wav` e `<id>.orig.txt`. I capitoli già convertiti con la voce
+difettosa restano com'erano.
 Usa solo voci che hai il diritto di usare.
 
 ## Libreria
@@ -86,8 +144,10 @@ Usa solo voci che hai il diritto di usare.
 La libreria si trova in `~/Documents/Grillo Parlante/books/`, con una cartella per libro o articolo:
 
 ```text
-book.json          titolo, tipo (kind), voce, capitoli con stato e durata
-cover.jpg          copertina, se la sorgente ne ha una
+book.json          titolo, tipo (kind), voce, capitoli con stato e durata, info lette dal file
+info.json          informazioni trovate online e correzioni a mano
+cover.jpg          copertina, se la sorgente ne ha una (o la prima pagina)
+cover.online.jpg   copertina trovata online; cover.manual.* quella scelta a mano
 text/001.txt       testo pulito di ogni capitolo
 chapters/001.mp3   audio dei capitoli convertiti (48 kbps, circa 21 MB per ora)
 ```
@@ -140,7 +200,7 @@ Formato ed esempi in [docs/json-input.md](docs/json-input.md), con `backend/exam
 ## Backend da riga di comando
 
 ```bash
-cd backend && .venv/bin/python -m app.cli import --input libro.pdf --voice uomo_01 --library ~/Grillo
+cd backend && .venv/bin/python -m app.cli import --input libro.pdf --voice brando --library ~/Grillo
 ```
 
 ```bash
@@ -148,7 +208,9 @@ cd backend && .venv/bin/python -m app.cli convert --book <id> --chapters 1-3 --l
 ```
 
 Le voci stanno in `backend/voices/`: un campione WAV con la trascrizione e un'anteprima MP3. Per
-aggiungerne una basta un campione pulito di 10–20 secondi più la riga corrispondente in `voices.json`.
+aggiungerne una basta un campione pulito di 10–20 secondi più la riga corrispondente in `voices.json`. Un secondo
+campione facoltativo `<id>.notizie.wav` (con `<id>.notizie.txt`) dà alla stessa voce il tono da notiziario per
+articoli e notiziari.
 
 ## Build
 

@@ -1,14 +1,22 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Book, BookView } from "../shared/contracts";
+import { mergeDetails } from "./bookDetails";
 import { libraryDir, readJson } from "./paths";
 
 export function bookDir(bookId: string) {
   return path.join(libraryDir(), "books", bookId);
 }
 
-export function readBook(bookId: string): Book | null {
+/** book.json così come l'ha scritto il backend (titolo e autore letti dal file). */
+export function readRawBook(bookId: string): Book | null {
   return readJson<Book | null>(path.join(bookDir(bookId), "book.json"), null);
+}
+
+/** Libro con le informazioni trovate online e le correzioni a mano (info.json). */
+export function readBook(bookId: string): Book | null {
+  const book = readRawBook(bookId);
+  return book ? mergeDetails(book, bookDir(bookId)) : null;
 }
 
 export function listBooks(): Book[] {
@@ -44,7 +52,7 @@ export function toView(
   return {
     ...book,
     chapters,
-    coverUrl: book.cover ? mediaUrl(book.id, book.cover) : undefined,
+    coverUrl: book.cover ? `${mediaUrl(book.id, book.cover)}?v=${encodeURIComponent(book.updatedAt || "")}` : undefined,
     chapterUrls,
     targets: extra.targets,
     uploadedChapters: extra.uploaded,

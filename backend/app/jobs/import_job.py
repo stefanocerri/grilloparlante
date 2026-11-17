@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.book_info import clean_info, find_isbn
 from app.chaptering.heading_detector import detect_from_headings, fallback_sections
 from app.chaptering.toc_detector import detect_from_toc
 from app.extractors.epub_extractor import extract_epub
@@ -116,12 +117,18 @@ class ImportJob:
       store.text_file(index).parent.mkdir(parents=True, exist_ok=True)
       store.text_file(index).write_text(chapter.text, encoding="utf-8")
 
+    info = dict(document.info)
+    if document.kind in ("libro", "documentazione") and not info.get("isbn"):
+      info["isbn"] = find_isbn(document.text)
+    info = clean_info(info)
+
     book = {
       "id": book_id,
       "title": document.title,
       "author": document.author,
       "kind": document.kind,
       "readTitles": document.read_titles,
+      **({"info": info} if info else {}),
       **{key: document.metadata[key] for key in ("publishedAt", "expiresAt", "source", "url") if document.metadata.get(key)},
       "voice": {"id": self.voice.id, "name": self.voice.name},
       "speed": self.speed,

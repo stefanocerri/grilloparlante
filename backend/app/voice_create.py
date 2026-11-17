@@ -25,6 +25,8 @@ MIN_SECONDS = 4.0
 TARGET_SECONDS = 15.0
 MAX_WITH_TRANSCRIPT = 30.0
 PAUSE_SECONDS = 0.25
+# Revisione del campione: le voci create prima del taglio in una pausa vera (revisione 2) vengono riparate al primo uso.
+SAMPLE_REVISION = 2
 PREVIEW_TEXT = "Ciao, sono la tua nuova voce. Da oggi posso leggerti libri, articoli e notizie, capitolo per capitolo."
 
 
@@ -32,17 +34,13 @@ class VoiceError(Exception):
   """Errore da mostrare all'utente così com'è."""
 
 
-def _cut_at_pause(audio: np.ndarray, seconds: float) -> np.ndarray:
-  """Taglia vicino a `seconds` in una pausa vera (almeno un quarto di secondo di silenzio), mai dentro una parola.
-
-  Se il campione finisce con un pezzo di parola, Whisper lo scarta dalla trascrizione e OmniVoice lo ripete
-  all'inizio di ogni audio (era il «un» in più).
-  """
+def _last_pause(audio: np.ndarray, seconds: float) -> int | None:
+  """Centro dell'ultima pausa vera (almeno PAUSE_SECONDS di silenzio) prima di `seconds` e dopo MIN_SECONDS."""
   end = int(seconds * SAMPLE_RATE)
-  if len(audio) <= end:
-    return audio
   hop = int(0.01 * SAMPLE_RATE)
   span = int(PAUSE_SECONDS / 0.01)
+  if len(audio) < 2 * hop:
+    return None
   energy = np.array([float(np.mean(audio[i:i + hop] ** 2)) for i in range(0, len(audio) - hop, hop)])
   quiet = energy < max(float(np.percentile(energy, 90)) * 0.01, 1e-7)
   # pause lunghe almeno `span` passi, cercate all'indietro da `seconds` fino a `MIN_SECONDS`
@@ -52,7 +50,21 @@ def _cut_at_pause(audio: np.ndarray, seconds: float) -> np.ndarray:
   for index in range(last - 1, first - 1, -1):
     run = run + 1 if quiet[index] else 0
     if run >= span:
-      return audio[: (index + run // 2) * hop]
+      return (index + run // 2) * hop
+  return None
+
+
+def _cut_at_pause(audio: np.ndarray, seconds: float) -> np.ndarray:
+  """Taglia vicino a `seconds` in una pausa vera (almeno un quarto di secondo di silenzio), mai dentro una parola.
+
+  Se il campione finisce con un pezzo di parola, Whisper lo scarta dalla trascrizione e OmniVoice lo ripete
+  all'inizio di ogni audio (era il «un» in più).
+  """
+  if len(audio) <= int(seconds * SAMPLE_RATE):
+    return audio
+  cut = _last_pause(audio, seconds)
+  if cut is not None:
+    return audio[:cut]
   raise VoiceError(
     "Nel campione non trovo una pausa per tagliarlo senza spezzare una parola. Usa un audio con qualche pausa tra "
     "le frasi, oppure scrivi tu la trascrizione esatta."
@@ -198,6 +210,7 @@ def create_voice(
     "gender": gender if gender in ("uomo", "donna") else "altro",
     "description": "Creata da un campione",
     "custom": True,
+    "sampleRevision": SAMPLE_REVISION,
   }
   entries = [item for item in _read_index(target) if item.get("id") != voice_id]
   _write_index(target, entries + [entry])
@@ -212,5 +225,75 @@ def delete_voice(voice_id: str, voices_dir: str) -> None:
   if not any(item.get("id") == voice_id for item in entries):
     raise VoiceError("Questa voce non è tra quelle create da te.")
   _write_index(target, [item for item in entries if item.get("id") != voice_id])
-  for suffix in (".wav", ".txt", ".preview.mp3"):
+  for suffix in (".wav", ".txt", ".preview.mp3", ".orig.wav", ".orig.txt"):
     (target / f"{voice_id}{suffix}").unlink(missing_ok=True)
+
+
+def repair_voice_sample(model, voice_id: str, sample_path: Path, transcript: str, log=print) -> str | None:
+  """Ripara una voce creata prima della revisione 2 del campione; restituisce la nuova trascrizione.
+
+  Le voci vecchie avevano il campione tagliato a 15 secondi esatti, spesso dentro una parola: quel pezzo non
+  finiva (o finiva male) nella trascrizione e OmniVoice lo ripeteva all'inizio di ogni audio («ancora un»).
+  Qui il campione si accorcia all'ultima pausa vera e si ritrascrive con Whisper, così audio e testo coincidono.
+  Gli originali restano accanto come <id>.orig.wav / <id>.orig.txt. Se non serve o non si può, restituisce None
+  e segna comunque la voce come controllata, per non riprovarci a ogni conversione.
+  """
+  import soundfile as sf
+
+  folder = sample_path.parent
+  entries = _read_index(folder)
+  entry = next((item for item in entries if item.get("id") == voice_id), None)
+  if entry is None or int(entry.get("sampleRevision", 1)) >= SAMPLE_REVISION:
+    return None
+
+  def mark(**extra) -> None:
+    entry.update({"sampleRevision": SAMPLE_REVISION, **extra})
+    _write_index(folder, entries)
+
+  try:
+    audio, rate = sf.read(str(sample_path), dtype="float32", always_2d=True)
+    audio = audio.mean(axis=1)
+  except (OSError, RuntimeError):
+    mark()
+    return None
+  if rate != SAMPLE_RATE:
+    mark()
+    return None
+
+  # Si taglia all'ultima pausa prima della fine: il pezzo dopo è quello che la voce ripeteva.
+  cut = _last_pause(audio, len(audio) / SAMPLE_RATE)
+  if cut is None or len(audio) - cut < int(0.05 * SAMPLE_RATE):
+    mark()
+    return None
+  fixed = audio[:cut]
+  trailing = int(0.15 * SAMPLE_RATE)
+  # niente silenzio lungo in coda: basta un attimo dopo l'ultima parola
+  import librosa
+
+  fixed, _ = librosa.effects.trim(fixed, top_db=35)
+  fixed = np.concatenate([fixed, np.zeros(trailing, dtype=np.float32)])
+
+  log(f"Riparo la voce {entry.get('name', voice_id)}: campione da {len(audio) / SAMPLE_RATE:.1f}s a {len(fixed) / SAMPLE_RATE:.1f}s")
+  model.load_asr_model()
+  new_transcript = model.transcribe((fixed[np.newaxis, :], SAMPLE_RATE)).strip()
+  if len(new_transcript) < 10:
+    mark()
+    return None
+
+  original_wav = folder / f"{voice_id}.orig.wav"
+  original_txt = folder / f"{voice_id}.orig.txt"
+  if not original_wav.exists():
+    shutil.copyfile(sample_path, original_wav)
+    original_txt.write_text(transcript, encoding="utf-8")
+  sf.write(str(sample_path), fixed, SAMPLE_RATE, subtype="PCM_16")
+  (folder / f"{voice_id}.txt").write_text(new_transcript, encoding="utf-8")
+
+  try:
+    prompt = model.create_voice_clone_prompt(ref_audio=str(sample_path), ref_text=new_transcript)
+    preview = model.generate(text=PREVIEW_TEXT, language="it", voice_clone_prompt=prompt)[0]
+    write_mp3(np.asarray(preview, dtype=np.float32).squeeze(), SAMPLE_RATE, folder / f"{voice_id}.preview.mp3")
+  except Exception as error:  # l'anteprima è un di più: la voce è già riparata
+    log(f"Anteprima non rifatta: {error}")
+  mark(repairedFrom=f"{voice_id}.orig.wav")
+  log(f"Voce riparata. Prima: «…{transcript[-40:]}» Ora: «…{new_transcript[-40:]}»")
+  return new_transcript
