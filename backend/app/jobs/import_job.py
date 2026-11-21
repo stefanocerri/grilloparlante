@@ -18,6 +18,7 @@ from app.extractors.pdf_extractor import extract_pdf
 from app.extractors.text_extractor import extract_text_file
 from app.file_detector import detect_file_type
 from app.jobs.models import Chapter, ExtractedDocument
+from app.language import detect_language, language_name
 from app.library import BookStore, make_book_id, now_iso
 from app.text_cleanup import clean_for_speech, separate_title
 from app.utils.events import EventEmitter
@@ -27,13 +28,49 @@ FALLBACK_CHAPTER_CHARS = 15000  # libro senza capitoli: parti da ~15-20 minuti
 CHARS_PER_MINUTE = 850          # lettura italiana a velocita normale, per la stima
 
 
+def extract_document(input_path: Path, emitter: EventEmitter | None = None) -> ExtractedDocument:
+  """Testo, capitoli della sorgente e metadati del file (PDF, EPUB, TXT/MD o JSON)."""
+  file_type = detect_file_type(str(input_path))
+  if file_type == "pdf":
+    document = extract_pdf(str(input_path))
+  elif file_type == "epub":
+    document = extract_epub(str(input_path))
+  elif file_type == "txt":
+    document = extract_text_file(str(input_path))
+  elif file_type == "json":
+    try:
+      document = extract_json(str(input_path))
+    except JsonInputError as error:
+      raise RuntimeError(f"File JSON non valido: {error}") from error
+  else:
+    raise RuntimeError(f"Formato non supportato: {input_path.suffix}")
+
+  if emitter:
+    for warning in document.warnings:
+      emitter.warning(warning)
+  if not document.text.strip():
+    raise RuntimeError("Non riesco a estrarre testo: il PDF sembra una scansione.")
+  return document
+
+
+def file_language(input_path: str) -> str:
+  """Lingua di un file prima di importarlo: serve a chiedere se tradurlo solo quando non è in italiano."""
+  document = extract_document(Path(input_path).expanduser().resolve())
+  return detect_language(document.text, document.info.get("language"))
+
+
 def estimate_minutes(chars: int, speed: float) -> float:
   return round(chars / (CHARS_PER_MINUTE * max(speed, 0.5)), 1)
 
 
 class ImportJob:
-  def __init__(self, input_path: str, voice_id: str, speed: float, library_dir: str, emitter: EventEmitter) -> None:
+  def __init__(
+    self, input_path: str, voice_id: str, speed: float, library_dir: str, emitter: EventEmitter, translate: bool = False
+  ) -> None:
     self.input_path = Path(input_path).expanduser().resolve()
+    # Se il libro non è in italiano: tradurlo (True) o farlo leggere nella sua lingua (False).
+    self.translate = translate
+    self.language = "it"
     self.voice = get_voice(voice_id)
     self.speed = round(float(speed), 2)
     self.library_dir = Path(library_dir).expanduser().resolve()
@@ -41,6 +78,11 @@ class ImportJob:
 
   def run(self) -> dict:
     document = self._extract()
+    self.language = detect_language(document.text, document.info.get("language"))
+    if self.language != "it":
+      self.emitter.log(
+        "info", f"Libro in {language_name(self.language)}: " + ("lo traduco in italiano" if self.translate else "la voce lo legge in originale")
+      )
     chapters = self._split_chapters(document)
     book_id = make_book_id(document.title, self.input_path, self.voice.id, self.speed)
     store = BookStore(self.library_dir, book_id)
@@ -48,6 +90,15 @@ class ImportJob:
     if store.exists():
       book = store.load()
       self.emitter.log("info", "Libro gia importato: riapro la sua scheda")
+      wanted = self.translate and book.get("language", "it") != "it"
+      if wanted != bool(book.get("translate")) and book.get("language", "it") != "it":
+        # Reimportato con l'altra scelta sulla lingua: vale l'ultima, se nessun capitolo è ancora convertito.
+        from app.translation.job import set_translation
+
+        try:
+          book = set_translation(store, wanted)
+        except RuntimeError as error:
+          self.emitter.warning(str(error))
     else:
       book = self._create_book(store, book_id, document, chapters)
 
@@ -56,26 +107,7 @@ class ImportJob:
     return result
 
   def _extract(self) -> ExtractedDocument:
-    file_type = detect_file_type(str(self.input_path))
-    if file_type == "pdf":
-      document = extract_pdf(str(self.input_path))
-    elif file_type == "epub":
-      document = extract_epub(str(self.input_path))
-    elif file_type == "txt":
-      document = extract_text_file(str(self.input_path))
-    elif file_type == "json":
-      try:
-        document = extract_json(str(self.input_path))
-      except JsonInputError as error:
-        raise RuntimeError(f"File JSON non valido: {error}") from error
-    else:
-      raise RuntimeError(f"Formato non supportato: {self.input_path.suffix}")
-
-    for warning in document.warnings:
-      self.emitter.warning(warning)
-    if not document.text.strip():
-      raise RuntimeError("Non riesco a estrarre testo: il PDF sembra una scansione.")
-    return document
+    return extract_document(self.input_path, self.emitter)
 
   def _split_chapters(self, document: ExtractedDocument) -> list[Chapter]:
     if document.sections:
@@ -99,7 +131,7 @@ class ImportJob:
         mode = "parti di lunghezza simile (nessun capitolo trovato)"
 
     for position, chapter in enumerate(chapters):
-      chapter.text = separate_title(clean_for_speech(chapter.text), chapter.title)
+      chapter.text = separate_title(clean_for_speech(chapter.text, language=self.language), chapter.title, self.language)
       if position < len(document.section_meta):
         chapter.meta = document.section_meta[position]
     chapters = [chapter for chapter in chapters if chapter.text]
@@ -128,6 +160,9 @@ class ImportJob:
       "author": document.author,
       "kind": document.kind,
       "readTitles": document.read_titles,
+      # Lingua del testo importato; con `translate` i capitoli vengono tradotti in italiano prima della lettura.
+      "language": self.language,
+      **({"translate": True} if self.translate and self.language != "it" else {}),
       **({"info": info} if info else {}),
       **{key: document.metadata[key] for key in ("publishedAt", "expiresAt", "source", "url") if document.metadata.get(key)},
       "voice": {"id": self.voice.id, "name": self.voice.name},

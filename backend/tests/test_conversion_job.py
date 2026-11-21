@@ -22,8 +22,8 @@ class FakeEngine:
 
   made: list[str] = []
 
-  def __init__(self, voice, speed=1.0, log=print, settings=None, model=None):
-    self.voice, self.speed, self.repaired = voice, speed, False
+  def __init__(self, voice, speed=1.0, log=print, settings=None, model=None, language="it"):
+    self.voice, self.speed, self.repaired, self.language = voice, speed, False, language
     self.settings = settings or settings_for(voice)
 
   def load(self):

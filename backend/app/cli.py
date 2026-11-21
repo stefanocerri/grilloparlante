@@ -2,6 +2,8 @@
 
   python -m app.cli import  --input libro.pdf --voice brando --library ~/Grillo
   python -m app.cli convert --book <id> --chapters 1,2,3 --library ~/Grillo
+  python -m app.cli translate --book <id> --chapters 1-3 --library ~/Grillo   # solo traduzione, senza voce
+  python -m app.cli translation --book <id> --on|--off --library ~/Grillo     # tradurre o leggere in originale
   python -m app.cli voices
   python -m app.cli prefetch      # scarica il modello OmniVoice
 """
@@ -45,11 +47,27 @@ def build_parser() -> argparse.ArgumentParser:
   importer.add_argument("--voice", required=True)
   importer.add_argument("--speed", type=float, default=1.0)
   importer.add_argument("--library", required=True, help="Cartella della libreria.")
+  importer.add_argument("--translate", action="store_true", help="Se il libro non è in italiano, traducilo.")
 
   convert = sub.add_parser("convert", help="Converte in audio i capitoli scelti.")
   convert.add_argument("--book", required=True)
   convert.add_argument("--chapters", required=True, help="Es. 1,2,5 oppure 1-4")
   convert.add_argument("--library", required=True)
+
+  translate = sub.add_parser("translate", help="Traduce in italiano i capitoli scelti (senza convertirli in audio).")
+  translate.add_argument("--book", required=True)
+  translate.add_argument("--chapters", required=True, help="Es. 1,2,5 oppure 1-4")
+  translate.add_argument("--library", required=True)
+
+  translation = sub.add_parser("translation", help="Accende o spegne la traduzione di un libro.")
+  translation.add_argument("--book", required=True)
+  translation.add_argument("--library", required=True)
+  switch = translation.add_mutually_exclusive_group(required=True)
+  switch.add_argument("--on", dest="enabled", action="store_true")
+  switch.add_argument("--off", dest="enabled", action="store_false")
+
+  language = sub.add_parser("language", help="Lingua di un file, prima di importarlo.")
+  language.add_argument("--input", required=True)
 
   sub.add_parser("voices", help="Elenca le voci disponibili (JSON).")
 
@@ -82,6 +100,16 @@ def main(argv: list[str] | None = None) -> int:
       for v in list_voices()
     ], ensure_ascii=False))
     return 0
+
+  if args.command == "language":
+    from app.jobs.import_job import file_language
+
+    try:
+      emitter.emit("result", {"language": file_language(args.input)})
+      return 0
+    except Exception as error:
+      emitter.error(str(error) or "Lingua non riconosciuta.")
+      return 1
 
   if args.command in ("voice-create", "voice-delete"):
     from app.voice_create import VoiceError, create_voice, delete_voice
@@ -121,7 +149,41 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "import":
       from app.jobs.import_job import ImportJob
 
-      ImportJob(args.input, args.voice, args.speed, args.library, emitter).run()
+      ImportJob(args.input, args.voice, args.speed, args.library, emitter, translate=args.translate).run()
+      return 0
+
+    if args.command in ("translate", "translation"):
+      from pathlib import Path
+
+      from app.library import BookStore
+      from app.translation.job import set_translation, translate_chapters
+      from app.translation.translator import TranslationUnavailable
+
+      store = BookStore(Path(args.library).expanduser().resolve(), args.book)
+      if not store.exists():
+        raise RuntimeError(f"Libro non trovato: {args.book}")
+      try:
+        if args.command == "translation":
+          book = set_translation(store, args.enabled)
+        else:
+          book = store.load()
+          if not book.get("translate"):
+            raise RuntimeError("La traduzione di questo libro è spenta.")
+
+          def check_cancelled() -> None:
+            if cancel_requested:
+              raise JobCancelled()
+
+          def progress(value: float, label: str, index: int, chapter: float) -> None:
+            emitter.emit("progress", {"bookId": book["id"], "progress": round(value, 4), "label": label,
+                                      "chapterIndex": index, "chapterProgress": round(chapter, 4)})
+
+          translate_chapters(store, book, parse_chapters(args.chapters), emitter, check_cancelled, progress)
+          emitter.emit("progress", {"bookId": book["id"], "progress": 1.0, "label": "Traduzione completata"})
+      except TranslationUnavailable as error:
+        emitter.error(str(error))
+        return 1
+      emitter.emit("result", {"bookId": book["id"], "bookDir": str(store.dir), "title": book["title"]})
       return 0
 
     ConversionJob(

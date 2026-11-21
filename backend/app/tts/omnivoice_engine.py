@@ -87,8 +87,11 @@ class OmniVoiceEngine:
     log: Callable[[str], None] = print,
     settings: NarrationSettings | None = None,
     model: Any = None,
+    language: str = "it",
   ) -> None:
     self.voice = voice
+    # Lingua del testo da leggere (la voce clonata parla anche le altre lingue, con il suo timbro).
+    self.language = language or "it"
     self.speed = max(0.7, min(1.4, float(speed)))
     self.log = log
     self.settings = settings or settings_for(voice)
@@ -166,7 +169,7 @@ class OmniVoiceEngine:
       options["audio_chunk_threshold"] = max(30.0, expected + 1.0)
     else:
       options["speed"] = self.speed
-    audio = self._model.generate(text=text, language="it", voice_clone_prompt=self._prompt, **options)[0]
+    audio = self._model.generate(text=text, language=self.language, voice_clone_prompt=self._prompt, **options)[0]
     return np.asarray(audio, dtype=np.float32).squeeze()
 
   def synthesize(self, text: str) -> np.ndarray:

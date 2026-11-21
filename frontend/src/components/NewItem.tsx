@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AppSnapshot } from "@shared/contracts";
 import { FileText, Pause, Play, Plus } from "lucide-react";
 import { TargetPicker } from "./Channels";
+import { languageName } from "../lib/format";
 
 const SPEEDS = [0.9, 1.0, 1.1, 1.2];
 
@@ -37,6 +38,12 @@ export function NewItem({
   const [targets, setTargets] = useState<string[]>(() =>
     remembered<string[]>("targets", []).filter((id) => snapshot.channels.some((channel) => channel.id === id && channel.db))
   );
+  const translator = snapshot.translator;
+  const [translate, setTranslate] = useState<boolean>(() => translator.available && remembered("translate", false));
+  // Lingua del file: undefined mentre la cerca, null se non riesce. La scelta sulla traduzione compare solo se non è italiano.
+  const [language, setLanguage] = useState<string | null | undefined>(undefined);
+  const foreign = Boolean(language && language !== "it");
+  const detecting = language === undefined && snapshot.runtime.state === "ready";
   const [playing, setPlaying] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -51,6 +58,18 @@ export function NewItem({
     let alive = true;
     setPreview(undefined);
     void window.grillo.previewFile(filePath).then((value) => alive && setPreview(value));
+    return () => {
+      alive = false;
+    };
+  }, [filePath]);
+
+  useEffect(() => {
+    let alive = true;
+    setLanguage(undefined);
+    void window.grillo
+      .fileLanguage(filePath)
+      .catch(() => null)
+      .then((value) => alive && setLanguage(value));
     return () => {
       alive = false;
     };
@@ -78,8 +97,11 @@ export function NewItem({
     localStorage.setItem("voiceId", JSON.stringify(voiceId));
     localStorage.setItem("speed", JSON.stringify(speed));
     localStorage.setItem("targets", JSON.stringify(targets));
+    if (foreign) localStorage.setItem("translate", JSON.stringify(translate));
     try {
-      onImported(await window.grillo.importBook({ filePath, voiceId, speed, convertAll, targets }));
+      onImported(
+        await window.grillo.importBook({ filePath, voiceId, speed, convertAll, targets, translate: foreign && translate })
+      );
     } catch (failure) {
       setError((failure as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, ""));
     }
@@ -172,6 +194,27 @@ export function NewItem({
         </div>
       </section>
 
+      {foreign && language && (
+        <section>
+          <p className="label mb-2">Il file è in {languageName(language)}</p>
+          <Segmented
+            options={[
+              { value: false, label: `Leggi in ${languageName(language)}` },
+              { value: true, label: "Traduci in italiano", disabled: !translator.available }
+            ]}
+            value={translate}
+            onChange={setTranslate}
+          />
+          <p className="mt-1.5 text-2xs text-mute">
+            {!translator.available
+              ? "La traduzione funziona solo sui Mac con chip Apple: la voce legge il libro nella sua lingua."
+              : translate
+                ? `Prima di leggerlo lo traduce TranslateGemma ${translator.model.toUpperCase()} sul Mac, un paragrafo alla volta (${translator.downloadGb.toLocaleString("it-IT")} GB da scaricare la prima volta).`
+                : "La voce lo legge nella sua lingua. Puoi decidere di tradurlo anche dopo, dalla scheda del libro."}
+          </p>
+        </section>
+      )}
+
       <section>
         <p className="label mb-2">Dove lo ascolti</p>
         <TargetPicker snapshot={snapshot} value={targets} onChange={setTargets} />
@@ -185,13 +228,43 @@ export function NewItem({
       {!engineReady && <p className="note-warn">Prima va installato il narratore.</p>}
 
       <div className="flex flex-col gap-2">
-        <button className="btn-primary btn-lg" disabled={!voiceId || importing || !engineReady} onClick={() => start(true)}>
-          {importing ? "Leggo il file…" : "Importa e converti tutto"}
+        <button className="btn-primary btn-lg" disabled={!voiceId || importing || !engineReady || detecting} onClick={() => start(true)}>
+          {importing || detecting ? "Leggo il file…" : "Importa e converti tutto"}
         </button>
-        <button className="btn-secondary" disabled={!voiceId || importing || !engineReady} onClick={() => start(false)}>
+        <button className="btn-secondary" disabled={!voiceId || importing || !engineReady || detecting} onClick={() => start(false)}>
           Importa e scegli i capitoli
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Scelta tra poche opzioni, nello stile del selettore della velocità. */
+export function Segmented<T>({
+  options,
+  value,
+  onChange,
+  disabled
+}: {
+  options: { value: T; label: string; disabled?: boolean }[];
+  value: T;
+  onChange: (value: T) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex gap-0.5 rounded-md border border-line bg-subtle p-0.5">
+      {options.map((option) => (
+        <button
+          key={option.label}
+          disabled={disabled || option.disabled}
+          onClick={() => onChange(option.value)}
+          className={`h-7 flex-1 rounded text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+            option.value === value ? "bg-bg text-ink shadow-[0_0_0_1px_rgb(var(--line))]" : "text-mute hover:text-ink"
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
     </div>
   );
 }

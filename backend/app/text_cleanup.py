@@ -52,8 +52,11 @@ def number_to_words(n: int) -> str:
   return str(n)
 
 
-def clean_for_speech(text: str, extended: bool = False) -> str:
+def clean_for_speech(text: str, extended: bool = False, language: str = "it") -> str:
   """Ripulisce il testo estratto da PDF prima della lettura.
+
+  `language` è la lingua del testo: abbreviazioni, date e numeri in lettere sono all'italiana, quindi per un testo in
+  un'altra lingua le cifre restano cifre (le legge la voce, o le traduce il traduttore).
 
   Con `extended` scrive anche come si leggono abbreviazioni, simboli, date, ore, decimali e numeri romani, e
   toglie quello che la voce non sa leggere (indirizzi web, parentesi, trattini di dialogo, parole tutte maiuscole).
@@ -65,22 +68,24 @@ def clean_for_speech(text: str, extended: bool = False) -> str:
   text = _SINGLE_NEWLINE.sub(" ", text)     # a capo dentro il paragrafo -> spazio
   text = _SUPERSCRIPTS.sub("", text)
   text = _NOTE_AFTER_PUNCT.sub("", text)
-  if extended:
+  italian = (language or "it") == "it"
+  if extended and italian:
     from app.text_spoken import spell_out
 
     text = spell_out(text)
   else:
     text = _SEPARATORS.sub(". ", text)
   # Le cifre le scriviamo noi in lettere: la voce le legge a modo suo ("Capitolo 1" diventava "Capitolo un").
-  text = _NUMBER.sub(lambda match: number_to_words(int(match.group())), text)
+  if italian:
+    text = _NUMBER.sub(lambda match: number_to_words(int(match.group())), text)
   text = _SPACES.sub(" ", text)
   text = re.sub(r"\n{3,}", "\n\n", text)
   return text.strip()
 
 
-def separate_title(text: str, title: str) -> str:
+def separate_title(text: str, title: str, language: str = "it") -> str:
   """Se il capitolo comincia con il suo titolo, mette un punto dopo il titolo: altrimenti la voce lo attacca al testo."""
-  spoken = clean_for_speech(title).rstrip()
+  spoken = clean_for_speech(title, language=language).rstrip()
   if not spoken or not text.startswith(spoken):
     return text
   rest = text[len(spoken):]

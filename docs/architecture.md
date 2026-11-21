@@ -33,7 +33,18 @@ PDF/EPUB/TXT/JSON ──► [app Mac: barra dei menu] ──► backend Python (
     - EPUB: ordine di lettura (spine), indice collegato ai file e alle ancore, senza la pagina dell'indice;
     - JSON: un capitolo per articolo (vedi [json-input.md](json-input.md));
     - altrimenti indice → titoli → parti da ~15 min.
-    Poi pulisce il testo e salva `book.json` + `text/NNN.txt`.
+    Poi riconosce la lingua dal testo (`language.py`; i metadati solo se il testo non basta), pulisce il testo
+    (i numeri in lettere solo per l'italiano) e salva `book.json` (con `language` e, se richiesto, `translate`) +
+    `text/NNN.txt`.
+  - `translate` / traduzione dentro `convert` (`translation/`): per i libri con `translate`, prima della voce i
+    capitoli scelti si traducono in italiano con TranslateGemma (MLX, 4 bit; 12B con almeno 16 GB di memoria,
+    altrimenti 4B). Un paragrafo alla volta, con il precedente e la sua traduzione come turno già fatto della
+    conversazione; i paragrafi oltre 1.400 caratteri a pezzi, a fine frase; una traduzione vuota o che si ripete si
+    rifà senza contesto. Paragrafi fatti in `work/traduzione/NNN.json` (ripresa), originale in
+    `text/original/NNN.txt`, traduzione al posto di `text/NNN.txt`; nel capitolo `translated` e `originalTitle`.
+    Il traduttore si chiude prima di caricare la voce. `translation --on|--off` cambia scelta finché nessun capitolo
+    è convertito. Un libro non tradotto si legge nella sua lingua: `language` passa a OmniVoice, e il profilo perde
+    la scrittura all'italiana e la durata calcolata da noi (misurata sul campione italiano).
   - `convert`: per ogni capitolo scelto, testo scritto come si legge → pezzi → OmniVoice → WAV in `work/`
     (ripresa automatica) → montaggio → MP3 48 kbps in `chapters/NNN.mp3`. Il titolo del capitolo viene annunciato
     solo per libri e documentazione (`readTitles`), non per articoli e notizie.

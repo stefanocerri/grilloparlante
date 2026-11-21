@@ -35,8 +35,14 @@ const api = {
   dismissVoiceJob: () => ipcRenderer.invoke("voice:dismiss") as Promise<void>,
   deleteVoice: (voiceId: string) => ipcRenderer.invoke("voice:delete", voiceId) as Promise<void>,
   previewFile: (filePath: string) => ipcRenderer.invoke("file:preview", filePath) as Promise<string | null>,
+  /** Lingua del file ("it", "en"...) prima di importarlo; null se non si riesce a leggerlo. */
+  fileLanguage: (filePath: string) => ipcRenderer.invoke("file:language", filePath) as Promise<string | null>,
   importBook: (request: ImportRequest) => ipcRenderer.invoke("book:import", request) as Promise<string>,
   convert: (bookId: string, chapters: number[]) => ipcRenderer.invoke("book:convert", bookId, chapters) as Promise<void>,
+  /** Traduce in italiano i capitoli scelti senza convertirli in audio. */
+  translate: (bookId: string, chapters: number[]) => ipcRenderer.invoke("book:translate", bookId, chapters) as Promise<void>,
+  /** Accende o spegne la traduzione in italiano di un libro non italiano. */
+  setTranslation: (bookId: string, enabled: boolean) => ipcRenderer.invoke("book:translation", bookId, enabled) as Promise<void>,
   cancelQueue: () => ipcRenderer.invoke("queue:cancel") as Promise<void>,
   revealBook: (bookId: string) => ipcRenderer.invoke("book:reveal", bookId) as Promise<void>,
   /** Apre la finestra Libreria (archivio, lettura e ascolto), facoltativamente su un libro. */

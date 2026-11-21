@@ -1,9 +1,10 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, protocol, shell } from "electron";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import QRCode from "qrcode";
-import type { AppQr, AppSnapshot, BookInfoEdit, Channel, ImportRequest, OnlineMatch, ThemeChoice, TursoSetupOutcome, VoiceCreateRequest, VoiceInfo } from "../shared/contracts";
+import type { AppQr, AppSnapshot, BookInfoEdit, Channel, ImportRequest, OnlineMatch, ThemeChoice, TranslatorInfo, TursoSetupOutcome, VoiceCreateRequest, VoiceInfo } from "../shared/contracts";
 import { CHANNEL_PROTOCOL_VERSION, type GrilloStatus, type RequestOptions } from "../shared/channel";
 import { ChannelLink, ChannelStore, ChannelSync, channelView } from "./channels";
 import { bookDir, deleteBook, listBooks, readBook, toView } from "./library";
@@ -181,6 +182,22 @@ function uploadedEverywhere(bookId: string) {
   return [...lists[0]].filter((index) => lists.every((list) => list.has(index)));
 }
 
+/**
+ * Traduttore che userà il backend (backend/app/translation/translator.py, stessa regola): TranslateGemma 12B con
+ * almeno 16 GB di memoria, altrimenti 4B. Solo sui Mac con chip Apple (MLX).
+ */
+function translatorInfo(): TranslatorInfo {
+  const ramGb = Math.round(os.totalmem() / 2 ** 30);
+  const forced = (process.env.GRILLO_TRADUTTORE ?? "").trim().toLowerCase();
+  const model = forced === "4b" || forced === "12b" ? forced : os.totalmem() / 2 ** 30 >= 15 ? "12b" : "4b";
+  return {
+    available: process.platform === "darwin" && process.arch === "arm64",
+    model,
+    downloadGb: model === "12b" ? 6.7 : 2.2,
+    ramGb
+  };
+}
+
 function snapshot(): AppSnapshot {
   return {
     theme,
@@ -203,7 +220,8 @@ function snapshot(): AppSnapshot {
     libraryDir: libraryDir(),
     lookupOnline,
     lookupPending: lookups.size,
-    unlinkedBooks: listBooks().filter(unlinked).length
+    unlinkedBooks: listBooks().filter(unlinked).length,
+    translator: translatorInfo()
   };
 }
 
@@ -409,10 +427,22 @@ ipcMain.handle("book:import", async (_event, request: ImportRequest) => {
   return bookId;
 });
 
+/** Lingua del file scelto: la scelta "leggi in originale / traduci" compare solo se non è italiano. */
+ipcMain.handle("file:language", (_event, filePath: string) => queue.detectLanguage(filePath));
+
 /** Prima pagina del file scelto, da mostrare prima di importarlo. */
 ipcMain.handle("file:preview", (_event, filePath: string) => previewDataUrl(filePath));
 
 ipcMain.handle("book:convert", (_event, bookId: string, chapters: number[]) => queue.enqueue(bookId, chapters));
+
+/** Solo traduzione (per rileggere il testo italiano nella Libreria prima di convertirlo). */
+ipcMain.handle("book:translate", (_event, bookId: string, chapters: number[]) => queue.enqueue(bookId, chapters, "translate"));
+
+/** Tradurre il libro in italiano o farlo leggere nella sua lingua. Non mentre è in coda o in conversione. */
+ipcMain.handle("book:translation", async (_event, bookId: string, enabled: boolean) => {
+  if (queue.busy(bookId)) throw new Error("Il libro è in coda: aspetta che finisca o ferma la conversione.");
+  await queue.setTranslation(bookId, enabled);
+});
 
 ipcMain.handle("queue:cancel", () => queue.cancelAll());
 

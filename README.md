@@ -126,6 +126,35 @@ Lo script salva gli MP3 affiancati e un file `misure.json` (velocità rispetto a
 con `--whisper`, gli errori sulle parole). I test del backend (serve `pytest`: `backend/.venv/bin/pip install pytest`):
 `backend/.venv/bin/python -m pytest backend/tests`.
 
+## Libri in altre lingue: originale o tradotti
+
+Grillo riconosce la lingua del libro dal testo (i metadati dell'EPUB vengono dopo: spesso dicono «en» anche per i
+libri italiani). Per un libro non italiano scegli all'importazione, in **Se non è in italiano**:
+
+- **Leggi in originale** (predefinito): la voce scelta legge nella lingua del libro, con il suo timbro. Numeri,
+  abbreviazioni e date restano come sono (la scrittura «come si legge» è all'italiana).
+- **Traduci in italiano**: prima di leggere ogni capitolo, Grillo lo traduce sul Mac con
+  [TranslateGemma](https://blog.google/innovation-and-ai/technology/developers-tools/translategemma/) di Google, un
+  modello fatto apposta per tradurre. Traduce un paragrafo alla volta tenendo davanti il paragrafo precedente con la
+  sua traduzione, così tiene il filo: chi parla, il genere di chi racconta, il tu o il lei.
+
+La scelta si cambia anche dopo, dalla scheda del libro (sezione **Lingua**), finché nessun capitolo è stato
+convertito. Lì c'è anche **Traduci senza convertire**, per rileggere la traduzione nella Libreria prima di ascoltarla.
+Il testo tradotto sostituisce quello in `text/NNN.txt` (è quello che legge la voce, che mostra la Libreria e che va
+alle app); l'originale resta in `text/original/NNN.txt`.
+
+Il modello si sceglie da solo in base alla memoria del Mac e si scarica la prima volta che serve:
+
+| Memoria del Mac | Modello | Download |
+|---|---|---|
+| 16 GB o più | TranslateGemma 12B (MLX, 4 bit) | circa 6,7 GB |
+| meno di 16 GB | TranslateGemma 4B (MLX, 4 bit) | circa 2,2 GB |
+
+`GRILLO_TRADUTTORE=4b` (o `12b`) lo impone. La traduzione gira solo sui Mac con chip Apple. Su un capitolo di
+romanzo il 12B è risultato il più fedele; il 4B traduce bene ma ogni tanto sbaglia il senso di una frase o torna al
+maschile per una narratrice. I traduttori «classici» provati (Opus-MT, NLLB) erano nettamente peggiori.
+Traduzione e voce non stanno in memoria insieme: prima si traducono i capitoli scelti, poi si carica la voce.
+
 ## Voci da un campione
 
 Oltre alle voci incluse puoi crearne di nuove: Impostazioni → **Voci** → "Nuova voce da un campione", oppure
@@ -148,7 +177,8 @@ book.json          titolo, tipo (kind), voce, capitoli con stato e durata, info 
 info.json          informazioni trovate online e correzioni a mano
 cover.jpg          copertina, se la sorgente ne ha una (o la prima pagina)
 cover.online.jpg   copertina trovata online; cover.manual.* quella scelta a mano
-text/001.txt       testo pulito di ogni capitolo
+text/001.txt       testo pulito di ogni capitolo (tradotto, per i libri da tradurre)
+text/original/     testo nella lingua del libro, per i capitoli tradotti
 chapters/001.mp3   audio dei capitoli convertiti (48 kbps, circa 21 MB per ora)
 ```
 
@@ -209,6 +239,9 @@ cd backend && .venv/bin/python -m app.cli import --input libro.pdf --voice brand
 ```bash
 cd backend && .venv/bin/python -m app.cli convert --book <id> --chapters 1-3 --library ~/Grillo
 ```
+
+Per i libri non italiani: `import --translate` li fa tradurre, `translation --book <id> --on|--off` cambia idea dopo,
+`translate --book <id> --chapters 1-3` traduce senza convertire.
 
 Le voci stanno in `backend/voices/`: un campione WAV con la trascrizione e un'anteprima MP3. Per
 aggiungerne una basta un campione pulito di 10–20 secondi più la riga corrispondente in `voices.json`. Un secondo

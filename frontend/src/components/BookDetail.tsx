@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AppSnapshot, BookView, ChapterEntry } from "@shared/contracts";
-import { BookOpenText, Cloud, ExternalLink, FolderOpen, Loader2, Pause, Play, Trash2 } from "lucide-react";
-import { formatDuration, formatMinutes } from "../lib/format";
+import { BookOpenText, Cloud, ExternalLink, FolderOpen, Languages, Loader2, Pause, Play, Trash2 } from "lucide-react";
+import { formatDuration, formatMinutes, languageName } from "../lib/format";
 import { kindOf } from "../lib/kinds";
 import { JobCard } from "./JobCard";
 import { TargetPicker } from "./Channels";
 import { BookInfoPanel, infoLine } from "./BookInfo";
+import { Segmented } from "./NewItem";
 
 export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snapshot: AppSnapshot; onDeleted: () => void }) {
   const [playing, setPlaying] = useState<number | null>(null);
@@ -125,6 +126,8 @@ export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snap
         <TargetPicker snapshot={snapshot} value={book.targets} onChange={(targets) => void window.grillo.setTargets(book.id, targets)} />
       </section>
 
+      {book.language && book.language !== "it" && <TranslationPanel book={book} snapshot={snapshot} />}
+
       {pending.length > 0 && (
         <div className="flex items-center gap-1.5">
           <button className="btn-primary flex-1" onClick={() => convert(pending.map((c) => c.index))}>
@@ -167,6 +170,7 @@ export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snap
           const ready = chapter.status === "ready";
           const uploaded = book.uploadedChapters.includes(chapter.index);
           const progress = Math.round((running?.chapterProgress ?? 0) * 100);
+          const translating = isRunning && snapshot.queue.running?.mode === "translate";
           const current = playing === chapter.index;
           return (
             <li key={chapter.index} className={`flex items-center gap-2.5 px-3 py-2 ${current ? "bg-accent/[0.05]" : ""}`}>
@@ -174,10 +178,13 @@ export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snap
                 {String(chapter.index).padStart(2, "0")}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium">{chapter.title}</p>
+                <p className="truncate text-xs font-medium" title={chapter.originalTitle}>
+                  {chapter.title}
+                </p>
                 <p className="flex items-center gap-1 font-mono text-2xs text-mute">
                   {ready ? formatDuration(chapter.duration) : formatMinutes(chapter.estimatedMinutes)}
-                  {isRunning && <span className="text-accent">· {progress}%</span>}
+                  {isRunning && <span className="text-accent">· {translating ? "traduzione " : ""}{progress}%</span>}
+                  {chapter.translated && <span className="font-sans">· tradotto</span>}
                   {queued && " · in coda"}
                   {chapter.meta?.source && <span className="truncate font-sans">· {chapter.meta.source}</span>}
                   {ready && syncOn && uploaded && <Cloud size={11} className="ml-0.5 shrink-0 text-ok" />}
@@ -222,6 +229,82 @@ export function BookDetail({ book, snapshot, onDeleted }: { book: BookView; snap
         onEnded={() => setPlaying(null)}
       />
     </div>
+  );
+}
+
+/** Lingua di un libro non italiano: leggerlo in originale o tradurlo, e tradurre senza convertire. */
+function TranslationPanel({ book, snapshot }: { book: BookView; snapshot: AppSnapshot }) {
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const translator = snapshot.translator;
+  const original = languageName(book.language ?? "");
+  const translated = book.chapters.filter((chapter) => chapter.translated).length;
+  const items = [...(snapshot.queue.running ? [snapshot.queue.running] : []), ...snapshot.queue.pending];
+  const busy = items.some((item) => item.bookId === book.id);
+  const queuedForTranslation = new Set(
+    items.filter((item) => item.bookId === book.id && item.mode === "translate").flatMap((item) => item.chapters)
+  );
+  const untranslated = book.chapters
+    .filter((chapter) => !chapter.translated && chapter.status !== "ready" && !queuedForTranslation.has(chapter.index))
+    .map((chapter) => chapter.index);
+  // Con capitoli già convertiti la lingua resta quella: l'audio sarebbe metà in una lingua e metà nell'altra.
+  const locked = book.chapters.some((chapter) => chapter.status !== "pending");
+
+  const choose = async (enabled: boolean) => {
+    if (enabled === Boolean(book.translate)) return;
+    setError(null);
+    setSaving(true);
+    try {
+      await window.grillo.setTranslation(book.id, enabled);
+    } catch (failure) {
+      setError((failure as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, ""));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="space-y-2 rounded-lg border border-line bg-subtle p-2.5">
+      <div className="flex items-center gap-2">
+        <Languages size={13} className="text-mute" />
+        <p className="label flex-1">Lingua</p>
+        <span className="text-2xs text-mute">libro in {original}</span>
+      </div>
+      <Segmented
+        options={[
+          { value: false, label: `Leggi in ${original}` },
+          { value: true, label: "Traduci in italiano", disabled: !translator.available }
+        ]}
+        value={Boolean(book.translate)}
+        onChange={(value) => void choose(value)}
+        disabled={locked || busy || saving}
+      />
+      {book.translate ? (
+        <div className="flex items-center gap-2">
+          <p className="flex-1 text-2xs text-mute">
+            Tradotti {translated}/{book.chapters.length} con TranslateGemma {translator.model.toUpperCase()}. Si traducono da soli
+            prima di convertirli.
+          </p>
+          {untranslated.length > 0 && (
+            <button
+              className="btn-secondary btn-sm shrink-0"
+              onClick={() => void window.grillo.translate(book.id, untranslated)}
+              title="Traduce i capitoli senza convertirli: puoi rileggerli nella Libreria prima di ascoltarli"
+            >
+              Traduci senza convertire
+            </button>
+          )}
+        </div>
+      ) : (
+        <p className="text-2xs text-mute">
+          {translator.available
+            ? `La voce legge in ${original}. Per ascoltarlo in italiano scegli "Traduci" prima di convertire.`
+            : `La voce legge in ${original}. La traduzione funziona solo sui Mac con chip Apple.`}
+        </p>
+      )}
+      {locked && !busy && <p className="text-2xs text-faint">Ci sono capitoli già convertiti: la lingua non si cambia più.</p>}
+      {error && <p className="note-error">{error}</p>}
+    </section>
   );
 }
 

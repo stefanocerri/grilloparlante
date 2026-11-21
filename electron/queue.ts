@@ -35,13 +35,58 @@ export class ConversionQueue {
     };
   }
 
-  queuedChapters(bookId: string): number[] {
+  /** Capitoli in coda per la conversione in audio (`mode` "translate": quelli in coda solo per la traduzione). */
+  queuedChapters(bookId: string, mode: "convert" | "translate" = "convert"): number[] {
     const items = [...(this.running ? [this.running] : []), ...this.pending];
-    return [...new Set(items.filter((item) => item.bookId === bookId).flatMap((item) => item.chapters))];
+    return [
+      ...new Set(
+        items.filter((item) => item.bookId === bookId && (item.mode ?? "convert") === mode).flatMap((item) => item.chapters)
+      )
+    ];
   }
 
   runningChapters(bookId: string): number[] {
-    return this.running?.bookId === bookId ? this.running.chapters : [];
+    return this.running?.bookId === bookId && this.running.mode !== "translate" ? this.running.chapters : [];
+  }
+
+  /** Il libro ha qualcosa in coda o in corso (conversione o traduzione). */
+  busy(bookId: string): boolean {
+    return [...(this.running ? [this.running] : []), ...this.pending].some((item) => item.bookId === bookId);
+  }
+
+  /** Lingua di un file prima di importarlo ("it", "en"...), null se non si riesce a leggerlo. */
+  async detectLanguage(filePath: string): Promise<string | null> {
+    const python = this.hooks.python();
+    if (!python) return null;
+    let language: string | null = null;
+    const run = runBackend(
+      python,
+      ["language", "--input", filePath],
+      (event) => {
+        if (event.type === "result") language = String(event.payload.language);
+      },
+      this.hooks.log
+    );
+    await run.done;
+    return language;
+  }
+
+  /** Accende o spegne la traduzione di un libro (veloce: non passa dalla coda). */
+  async setTranslation(bookId: string, enabled: boolean): Promise<void> {
+    const python = this.requirePython();
+    let error = "";
+    const run = runBackend(
+      python,
+      ["translation", "--book", bookId, enabled ? "--on" : "--off", "--library", libraryDir()],
+      (event) => {
+        if (event.type === "error") error = String(event.payload.message);
+      },
+      this.hooks.log
+    );
+    const code = await run.done;
+    this.hooks.onBookChanged(bookId);
+    this.hooks.onChange();
+    if (code !== 0 || error) throw new Error(error || "Non sono riuscito a cambiare la lingua del libro.");
   }
 
   /** Passo 1: estrae testo e capitoli. Veloce, non passa dalla coda. */
@@ -55,7 +100,10 @@ export class ConversionQueue {
     let error = "";
     const run = runBackend(
       python,
-      ["import", "--input", request.filePath, "--voice", request.voiceId, "--speed", String(request.speed), "--library", libraryDir()],
+      [
+        "import", "--input", request.filePath, "--voice", request.voiceId, "--speed", String(request.speed),
+        "--library", libraryDir(), ...(request.translate ? ["--translate"] : [])
+      ],
       (event) => {
         if (event.type === "result") bookId = String(event.payload.bookId);
         if (event.type === "error") error = String(event.payload.message);
@@ -74,13 +122,14 @@ export class ConversionQueue {
     return bookId;
   }
 
-  /** Passo 2: mette in coda i capitoli da convertire. */
-  enqueue(bookId: string, chapters: number[]) {
-    const already = new Set(this.queuedChapters(bookId));
+  /** Passo 2: mette in coda i capitoli da convertire (o, con mode "translate", solo da tradurre). */
+  enqueue(bookId: string, chapters: number[], mode: "convert" | "translate" = "convert") {
+    // Un capitolo già in coda per la conversione verrà comunque tradotto prima: non serve metterlo anche lì.
+    const already = new Set([...this.queuedChapters(bookId), ...(mode === "translate" ? this.queuedChapters(bookId, "translate") : [])]);
     const fresh = chapters.filter((index) => !already.has(index));
     if (!fresh.length) return;
     this.lastError = null;
-    this.pending.push({ bookId, chapters: fresh.sort((a, b) => a - b) });
+    this.pending.push({ bookId, chapters: fresh.sort((a, b) => a - b), ...(mode === "translate" ? { mode } : {}) });
     this.hooks.onChange();
     void this.next();
   }
@@ -123,18 +172,19 @@ export class ConversionQueue {
 
     const item = this.pending.shift()!;
     this.running = item;
-    this.progress = { bookId: item.bookId, progress: 0, label: "Avvio del narratore…" };
+    const translating = item.mode === "translate";
+    this.progress = { bookId: item.bookId, progress: 0, label: translating ? "Avvio del traduttore…" : "Avvio del narratore…" };
     this.hooks.onChange();
 
     let failure = "";
     this.current = runBackend(
       python,
-      ["convert", "--book", item.bookId, "--chapters", item.chapters.join(","), "--library", libraryDir()],
+      [translating ? "translate" : "convert", "--book", item.bookId, "--chapters", item.chapters.join(","), "--library", libraryDir()],
       (event) => {
         if (event.type === "progress") {
           this.progress = event.payload as unknown as JobProgress;
           this.hooks.onChange();
-        } else if (event.type === "chapter") {
+        } else if (event.type === "chapter" || event.type === "translated") {
           this.hooks.onBookChanged(item.bookId);
         } else if (event.type === "log") {
           this.progress = { ...(this.progress ?? { bookId: item.bookId, progress: 0 }), label: String(event.payload.message) };

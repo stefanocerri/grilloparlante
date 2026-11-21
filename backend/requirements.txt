@@ -8,3 +8,6 @@ soundfile>=0.12.1
 lameenc>=1.7.0
 # Motore voce (pesi CC-BY-NC: solo uso personale/non commerciale)
 omnivoice==0.2.1
+# Traduttore dei libri non italiani (TranslateGemma con MLX): solo sui Mac con chip Apple.
+# Chi ha installato il narratore prima lo riceve alla prima traduzione (app/translation/translator.py).
+mlx-lm>=0.29; sys_platform == "darwin" and platform_machine == "arm64"

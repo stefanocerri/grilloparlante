@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import Callable
 
@@ -20,6 +21,7 @@ from app.jobs.models import Chapter
 from app.library import BookStore
 from app.text_cleanup import clean_for_speech
 from app.tts.omnivoice_engine import SAMPLE_RATE, OmniVoiceEngine
+from app.tts.settings import settings_for
 from app.utils.events import EventEmitter
 from app.utils.files import slugify
 from app.voices import get_voice, list_voices
@@ -48,6 +50,8 @@ class ConversionJob:
     self.requested = sorted(set(chapters))
     self.emitter = emitter
     self.is_cancelled = is_cancelled
+    # Parte della barra di avanzamento usata da questa fase (la traduzione, se c'è, viene prima della voce).
+    self._span = (0.0, 1.0)
 
   def run(self) -> dict:
     book = self.book
@@ -60,6 +64,18 @@ class ConversionJob:
     if not todo:
       self.emitter.log("info", "I capitoli scelti sono gia pronti")
       return self._finish()
+
+    # Libro da tradurre: prima si traducono tutti i capitoli scelti, poi si carica la voce. I due modelli non
+    # stanno in memoria insieme.
+    from app.translation.job import needs_translation, translate_chapters
+
+    if any(needs_translation(book, entry) for entry in todo):
+      self._span = (0.0, 0.35)
+      translate_chapters(
+        self.store, book, [entry["index"] for entry in todo], self.emitter, self._ensure_not_cancelled,
+        lambda value, label, index, chapter: self._progress(value, label, chapterIndex=index, chapterProgress=round(chapter, 4)),
+      )
+      self._span = (0.35, 1.0)
 
     # Le voci con due campioni leggono i libri con tono da racconto e articoli e notiziari con tono da notiziario.
     try:
@@ -76,7 +92,11 @@ class ConversionJob:
     voice = voice.for_kind(book.get("kind"))
     if voice.sample_path.name.endswith(".notizie.wav"):
       self.emitter.log("info", f"Voce {voice.name} con tono da notiziario")
-    engine = OmniVoiceEngine(voice, book.get("speed", 1.0), log=lambda m: self.emitter.log("info", m))
+    language = spoken_language(book)
+    engine = OmniVoiceEngine(
+      voice, book.get("speed", 1.0), log=lambda m: self.emitter.log("info", m),
+      settings=settings_for_language(settings_for(voice), language), language=language,
+    )
     if voice.custom:
       # Le voci da campione si controllano (ed eventualmente riparano) al caricamento: se la voce è cambiata,
       # i pezzi già pronti in work/ sono stati fatti con quella difettosa e vanno rifatti.
@@ -136,8 +156,9 @@ class ConversionJob:
     settings = engine.settings
     announce = self.book.get("readTitles", True) and _should_announce(chapter.title)
     # Ripulito anche qui (non solo all'importazione), così vale pure per i libri importati prima.
-    chapter.text = clean_for_speech(chapter.text, extended=settings.extended_cleanup)
-    spoken_title = clean_for_speech(chapter.title, extended=settings.extended_cleanup)
+    language = engine.language
+    chapter.text = clean_for_speech(chapter.text, extended=settings.extended_cleanup, language=language)
+    spoken_title = clean_for_speech(chapter.title, extended=settings.extended_cleanup, language=language)
     if announce:
       # Il titolo viene annunciato a parte (con una pausa): toglilo dall'inizio del testo
       # se c'e gia, altrimenti verrebbe letto due volte.
@@ -207,13 +228,28 @@ class ConversionJob:
     return int(max(0, remaining_chars) / (session["chars"] / elapsed))
 
   def _progress(self, value: float, label: str, **extra) -> None:
-    payload = {"bookId": self.book["id"], "progress": round(max(0.0, min(value, 1.0)), 4), "label": label}
+    start, end = self._span
+    value = start + (end - start) * max(0.0, min(value, 1.0))
+    payload = {"bookId": self.book["id"], "progress": round(value, 4), "label": label}
     payload.update({key: val for key, val in extra.items() if val is not None})
     self.emitter.emit("progress", payload)
 
   def _ensure_not_cancelled(self) -> None:
     if self.is_cancelled():
       raise JobCancelled()
+
+
+def spoken_language(book: dict) -> str:
+  """Lingua in cui legge la voce: italiano se il libro è tradotto, altrimenti quella del libro."""
+  return "it" if book.get("translate") else (book.get("language") or "it")
+
+
+def settings_for_language(settings, language: str):
+  """Per un testo non italiano: niente scrittura all'italiana di numeri e abbreviazioni, e la durata la stima
+  OmniVoice (la nostra si basa sulla velocità del campione, che è in italiano)."""
+  if language == "it":
+    return settings
+  return replace(settings, name=f"{settings.name}-{language}", extended_cleanup=False, own_duration=False)
 
 
 def _should_announce(title: str) -> bool:

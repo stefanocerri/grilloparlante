@@ -38,6 +38,10 @@ export interface ChapterEntry {
   chars: number;
   estimatedMinutes: number;
   size?: number;
+  /** Tradotto in italiano: il testo in text/NNN.txt è la traduzione, l'originale sta in text/original/. */
+  translated?: boolean;
+  /** Titolo nella lingua del libro, se il capitolo è tradotto. */
+  originalTitle?: string;
   /** Solo per articoli/notizie da JSON: fonte, link, sezione, data. */
   meta?: { section?: string; source?: string; url?: string; author?: string; publishedAt?: string };
 }
@@ -103,6 +107,10 @@ export interface Book {
   kind?: ContentKind;
   /** false per articoli/notizie: il titolo del capitolo non viene letto. */
   readTitles?: boolean;
+  /** Lingua del testo importato (riconosciuta dal testo), es. "it" o "en". Assente nei libri di prima: italiano. */
+  language?: string;
+  /** Libro non italiano da tradurre in italiano prima della lettura (altrimenti la voce legge in originale). */
+  translate?: boolean;
   publishedAt?: string;
   expiresAt?: string;
   source?: string;
@@ -154,6 +162,8 @@ export interface JobProgress {
 export interface QueueItem {
   bookId: string;
   chapters: number[];
+  /** "translate": solo traduzione, senza voce. Assente: conversione in audio (con traduzione, se serve). */
+  mode?: "convert" | "translate";
 }
 
 export interface QueueState {
@@ -275,6 +285,18 @@ export interface AppSnapshot {
   lookupPending: number;
   /** Libri (anche già convertiti) senza un libro trovato online né titolo corretto a mano. */
   unlinkedBooks: number;
+  /** Traduttore dei libri non italiani (TranslateGemma, scelto in base alla memoria del Mac). */
+  translator: TranslatorInfo;
+}
+
+export interface TranslatorInfo {
+  /** false sui Mac Intel: MLX gira solo sui chip Apple. */
+  available: boolean;
+  /** "12b" con almeno 16 GB di memoria, altrimenti "4b". */
+  model: "4b" | "12b";
+  /** Peso del download, in GB. */
+  downloadGb: number;
+  ramGb: number;
 }
 
 export interface ImportRequest {
@@ -285,4 +307,6 @@ export interface ImportRequest {
   convertAll?: boolean;
   /** Canali a cui mandarlo (oltre al Mac, dove resta sempre). */
   targets?: string[];
+  /** Se il libro non è in italiano, tradurlo in italiano (altrimenti la voce lo legge nella sua lingua). */
+  translate?: boolean;
 }
