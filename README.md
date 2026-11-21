@@ -129,7 +129,7 @@ con `--whisper`, gli errori sulle parole). I test del backend (serve `pytest`: `
 ## Libri in altre lingue: originale o tradotti
 
 Grillo riconosce la lingua del libro dal testo (i metadati dell'EPUB vengono dopo: spesso dicono «en» anche per i
-libri italiani). Per un libro non italiano scegli all'importazione, in **Se non è in italiano**:
+libri italiani), appena scegli il file. Solo se non è in italiano, prima di importarlo compare la scelta:
 
 - **Leggi in originale** (predefinito): la voce scelta legge nella lingua del libro, con il suo timbro. Numeri,
   abbreviazioni e date restano come sono (la scrittura «come si legge» è all'italiana).
